@@ -30,7 +30,7 @@ async def validation_error(request: Request, error: RequestValidationError) -> J
     # Validation details can contain submitted credentials. Return message text only.
     fields = {issue["loc"][-1] for issue in error.errors() if issue["loc"]}
     if "username" in fields:
-        message = "Use 1 to 64 letters or numbers for your username."
+        message = "Invalid characters in username. Use letters and numbers only."
     elif "password" in fields:
         message = "Enter a password of up to 128 characters."
     else:
