@@ -2,11 +2,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from .auth import router
+from .auth import router as auth_router
+from .budgets import router as budget_router
 from .config import settings
 
 app = FastAPI(title="Budget Assistant")
-app.include_router(router)
+app.include_router(auth_router)
+app.include_router(budget_router)
 
 
 @app.middleware("http")
@@ -18,7 +20,7 @@ async def verify_origin(request: Request, call_next):
         )
     else:
         response = await call_next(request)
-    if request.url.path.startswith("/api/auth/"):
+    if request.url.path.startswith(("/api/auth/", "/api/budgets")):
         response.headers["Cache-Control"] = "no-store"
     return response
 
