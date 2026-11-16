@@ -74,7 +74,7 @@ class AuthFlowTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(untrusted.status_code, 403)
 
             for credentials, expected in (
-                ({"username": "Budget_User", "password": "Demo8abc"}, "Use 1 to 64 letters or numbers"),
+                ({"username": "Budget_User", "password": "Demo8abc"}, "letters and numbers only"),,
                 ({"username": "BudgetUser8", "password": ""}, "Enter a password"),
             ):
                 with self.subTest(credentials=expected):
