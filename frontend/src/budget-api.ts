@@ -75,6 +75,10 @@ export async function savePlan(id: number, plan: Plan): Promise<Budget> {
   return budgetRequest(budgetPath(id), jsonBody("PUT", plan));
 }
 
+export function loadSampleMonth(month: string): Promise<Budget> {
+  return budgetRequest("/sample", jsonBody("POST", { month }));
+}
+
 export async function readActivity(budgetId: number, signal: AbortSignal): Promise<Activity> {
   return budgetRequest(`${budgetPath(budgetId)}/activity`, { signal });
 }

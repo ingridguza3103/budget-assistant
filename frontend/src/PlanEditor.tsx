@@ -50,6 +50,45 @@ function PlanFields({ draft, onChange }: PlanFieldsProps) {
   ));
 }
 
+function scenarioRemainder(draft: PlanDraft): number | null {
+  try {
+    const plan = parsePlan(draft);
+    const allocated = Object.values(plan.allocations).reduce((total, cents) => total + cents, 0);
+    return plan.planned_income_cents - allocated;
+  } catch {
+    return null;
+  }
+}
+
+export function ScenarioPanel({ budget }: { budget: Budget }) {
+  const [draft, setDraft] = useState<PlanDraft | null>(null);
+  const remainder = draft && scenarioRemainder(draft);
+
+  return (
+    <section className="budget-panel" aria-labelledby="scenario-heading">
+      <div className="budget-row">
+        <h2 id="scenario-heading">What if?</h2>
+        <button className="secondary-button" type="button" aria-expanded={draft !== null}
+          onClick={() => setDraft(draft ? null : planDraft(budget))}>
+          {draft ? "Discard preview" : "Preview a change"}
+        </button>
+      </div>
+      {draft && <>
+        <fieldset className="budget-fields" aria-label="Scenario amounts in euros">
+          <PlanFields draft={draft} onChange={setDraft} />
+        </fieldset>
+        {remainder === null ? <p className="budget-status">Enter valid amounts to see the preview.</p> : (
+          <dl className="budget-totals" aria-live="polite">
+            <div><dt>Saved remainder</dt><dd>{money(budget.planned_remainder_cents)}</dd></div>
+            <div><dt>Preview remainder</dt><dd>{money(remainder)}</dd></div>
+            <div><dt>Difference</dt><dd>{money(remainder - budget.planned_remainder_cents)}</dd></div>
+          </dl>
+        )}
+      </>}
+    </section>
+  );
+}
+
 type Props = {
   budget: Budget;
   onSaved: (changed: Budget) => void;
