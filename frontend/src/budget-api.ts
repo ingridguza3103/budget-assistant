@@ -28,6 +28,22 @@ export type Activity = {
   spending: Record<Category, number>;
 };
 
+function budgetPath(id: number): string {
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw new Error("Invalid budget ID.");
+  }
+  return "/" + encodeURIComponent(String(id));
+}
+
+const uuidPattern = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+function recordIdSegment(id: string): string {
+  if (typeof id !== "string" || !uuidPattern.test(id)) {
+    throw new Error("Invalid record ID.");
+  }
+  return encodeURIComponent(id);
+}
+
 async function budgetRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await apiRequest("/api/budgets" + path, init);
   await ensureSuccess(response);
@@ -55,26 +71,26 @@ export function createBudget(month: string, copyPrevious: boolean): Promise<Budg
   }));
 }
 
-export function savePlan(id: number, plan: Plan): Promise<Budget> {
-  return budgetRequest("/" + id, jsonBody("PUT", plan));
+export async function savePlan(id: number, plan: Plan): Promise<Budget> {
+  return budgetRequest(budgetPath(id), jsonBody("PUT", plan));
 }
 
 export function loadSampleMonth(month: string): Promise<Budget> {
   return budgetRequest("/sample", jsonBody("POST", { month }));
 }
 
-export function readActivity(budgetId: number, signal: AbortSignal): Promise<Activity> {
-  return budgetRequest(`/${budgetId}/activity`, { signal });
+export async function readActivity(budgetId: number, signal: AbortSignal): Promise<Activity> {
+  return budgetRequest(`${budgetPath(budgetId)}/activity`, { signal });
 }
 
-export function addEntry(budgetId: number, entry: Entry): Promise<Activity> {
-  return budgetRequest(`/${budgetId}/entries`, jsonBody("POST", entry));
+export async function addEntry(budgetId: number, entry: Entry): Promise<Activity> {
+  return budgetRequest(`${budgetPath(budgetId)}/entries`, jsonBody("POST", entry));
 }
 
-export function editEntry(budgetId: number, entryId: string, entry: EntryInput): Promise<Activity> {
-  return budgetRequest(`/${budgetId}/entries/${entryId}`, jsonBody("PUT", entry));
+export async function editEntry(budgetId: number, entryId: string, entry: EntryInput): Promise<Activity> {
+  return budgetRequest(`${budgetPath(budgetId)}/entries/${recordIdSegment(entryId)}`, jsonBody("PUT", entry));
 }
 
-export function deleteEntry(budgetId: number, entryId: string): Promise<Activity> {
-  return budgetRequest(`/${budgetId}/entries/${entryId}`, { method: "DELETE" });
+export async function deleteEntry(budgetId: number, entryId: string): Promise<Activity> {
+  return budgetRequest(`${budgetPath(budgetId)}/entries/${recordIdSegment(entryId)}`, { method: "DELETE" });
 }
