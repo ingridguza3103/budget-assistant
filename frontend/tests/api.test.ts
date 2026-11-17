@@ -1,8 +1,9 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { authenticate, getAccount, logout } from "../src/api";
+import { apiRequest, authenticate, getAccount, logout } from "../src/api";
 
 const credentials = { username: "BudgetUser8", password: "Demo8abc" };
 const account = { username: credentials.username };
+const transportOptions = { mode: "same-origin", redirect: "error", credentials: "same-origin" };
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -15,7 +16,8 @@ function respondWith(response: Response) {
 test.each(["signup", "login"] as const)("posts credentials to %s", async (mode) => {
   const request = respondWith(Response.json(account));
   await expect(authenticate(mode, credentials)).resolves.toEqual(account);
-  expect(request).toHaveBeenCalledWith("/api/auth/" + mode, {
+  expect(request).toHaveBeenCalledWith(window.location.origin + "/api/auth/" + mode, {
+    ...transportOptions,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credentials),
@@ -26,7 +28,7 @@ test("loads the current account and forwards the abort signal", async () => {
   const request = respondWith(Response.json(account));
   const { signal } = new AbortController();
   await expect(getAccount(signal)).resolves.toEqual(account);
-  expect(request).toHaveBeenCalledWith("/api/auth/me", { signal });
+  expect(request).toHaveBeenCalledWith(window.location.origin + "/api/auth/me", { ...transportOptions, signal });
 });
 
 test("treats a 401 session response as signed out", async () => {
@@ -37,7 +39,20 @@ test("treats a 401 session response as signed out", async () => {
 test("posts to logout", async () => {
   const request = respondWith(new Response(null, { status: 204 }));
   await expect(logout()).resolves.toBeUndefined();
-  expect(request).toHaveBeenCalledWith("/api/auth/logout", { method: "POST" });
+  expect(request).toHaveBeenCalledWith(window.location.origin + "/api/auth/logout", {
+    ...transportOptions,
+    method: "POST",
+  });
+});
+
+test.each([
+  "https://example.invalid/api/budgets",
+  "/settings",
+  "/api/budgets?sort=month",
+])("rejects requests outside the supported API path shape (%s)", async (path) => {
+  const request = respondWith(Response.json({}));
+  await expect(apiRequest(path)).rejects.toThrow("Invalid API request path.");
+  expect(request).not.toHaveBeenCalled();
 });
 
 test("returns the server's readable validation message", async () => {
