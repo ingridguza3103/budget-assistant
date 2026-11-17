@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import ActivityPanel from "./ActivityPanel";
+import BillCalendar from "./BillCalendar";
 import { type Budget, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
 import PlanEditor, { ScenarioPanel } from "./PlanEditor";
@@ -47,6 +48,7 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
         <PlanEditor budget={selected} onSaved={storeBudget} expireSession={expireSession} />
         <ActivityPanel budget={selected} expireSession={expireSession} />
         <ScenarioPanel budget={selected} />
+        <BillCalendar budget={selected} expireSession={expireSession} />
       </article>
     );
   }

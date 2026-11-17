@@ -78,3 +78,17 @@ class BudgetEntry(Base):
     category: Mapped[str] = mapped_column(String(16))
     description: Mapped[str] = mapped_column(String(140))
     amount_cents: Mapped[int]
+
+
+class ScheduledBill(Base):
+    __tablename__ = "scheduled_bills"
+    __table_args__ = (
+        CheckConstraint(f"amount_cents BETWEEN 1 AND {MAX_CENTS}", name="ck_bills_amount"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    budget_id: Mapped[int] = mapped_column(ForeignKey("budgets.id", ondelete="CASCADE"), index=True)
+    due_date: Mapped[date] = mapped_column(Date)
+    name: Mapped[str] = mapped_column(String(80))
+    amount_cents: Mapped[int]
+    paid: Mapped[bool]

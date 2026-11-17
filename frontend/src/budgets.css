@@ -82,6 +82,12 @@ fieldset.budget-fields { margin: 18px 0; border: 0; padding: 0; min-width: 0; }
 .budget-entries li > :first-child { flex: 1; min-width: 120px; overflow-wrap: anywhere; }
 .budget-entries small { display: block; margin-top: 3px; color: var(--muted); }
 
+.bill-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 16px; }
+.bill-calendar > strong { padding: 5px 0; text-align: center; font-size: .75rem; color: var(--muted); }
+.bill-day { min-height: 42px; padding: 5px; background: var(--field); border-radius: 4px; font-size: .8rem; }
+.bill-day-due { outline: 1px solid var(--brass); outline-offset: -1px; }
+.bill-day small { display: block; color: var(--brass-light); font-size: .675rem; }
+
 @media (max-width: 450px) {
   .budget-create { grid-template-columns: 1fr; }
   .budget-create .budget-primary { justify-self: start; }

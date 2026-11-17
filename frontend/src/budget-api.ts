@@ -94,3 +94,22 @@ export async function editEntry(budgetId: number, entryId: string, entry: EntryI
 export async function deleteEntry(budgetId: number, entryId: string): Promise<Activity> {
   return budgetRequest(`${budgetPath(budgetId)}/entries/${recordIdSegment(entryId)}`, { method: "DELETE" });
 }
+
+export type NewBill = { id: string; due_date: string; name: string; amount_cents: number };
+export type Bill = NewBill & { paid: boolean };
+
+export async function listBills(budgetId: number, signal: AbortSignal): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills`, { signal });
+}
+
+export async function addBill(budgetId: number, bill: NewBill): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills`, jsonBody("POST", bill));
+}
+
+export async function setBillPaid(budgetId: number, billId: string, paid: boolean): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills/${recordIdSegment(billId)}/status`, jsonBody("PUT", { paid }));
+}
+
+export async function deleteBill(budgetId: number, billId: string): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills/${recordIdSegment(billId)}`, { method: "DELETE" });
+}

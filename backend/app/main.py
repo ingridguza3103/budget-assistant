@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from .activity import router as activity_router
 from .auth import router as auth_router
+from .bills import router as bills_router
 from .budget_demo import router as demo_router
 from .budgets import router as budget_router
 from .config import settings
@@ -13,6 +14,7 @@ app.include_router(auth_router)
 app.include_router(budget_router)
 app.include_router(activity_router)
 app.include_router(demo_router)
+app.include_router(bills_router)
 
 
 @app.middleware("http")
