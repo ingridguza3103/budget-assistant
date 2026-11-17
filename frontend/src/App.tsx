@@ -1,5 +1,6 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { type Account, type AuthMode, authenticate, getAccount, logout } from "./api";
+import BudgetWorkspace from "./BudgetWorkspace";
 
 function Brand() {
   return (
@@ -154,13 +155,8 @@ function MyBudgets({ account, onLogout }: { account: Account; onLogout: () => vo
         </div>
       </header>
       <main className="budgets">
-        <h1>My Budgets</h1>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <section className="budget-placeholder">
-          <span className="month-icon" aria-hidden="true" />
-          <h2>No budgets yet</h2>
-          <p>Your monthly budgets will appear here.</p>
-        </section>
+        <BudgetWorkspace expireSession={onLogout} />
       </main>
     </>
   );
@@ -171,6 +167,7 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
   const [checkNumber, setCheckNumber] = useState(0);
+  const clearAccount = useCallback(() => setAccount(null), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -187,7 +184,7 @@ export default function App() {
     return () => controller.abort();
   }, [checkNumber]);
 
-  if (account) return <MyBudgets account={account} onLogout={() => setAccount(null)} />;
+  if (account) return <MyBudgets account={account} onLogout={clearAccount} />;
 
   return (
     <>
