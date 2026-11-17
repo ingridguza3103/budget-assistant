@@ -13,3 +13,4 @@ dist/
 /backend/coverage.xml
 /backend/htmlcov/
 /frontend/coverage/
+/.vscode/

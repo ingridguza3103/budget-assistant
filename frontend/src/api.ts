@@ -12,10 +12,27 @@ export class ApiError extends Error {
   }
 }
 
+const apiPathPattern = /^\/api\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/i;
+
 export async function apiRequest(path: string, init?: RequestInit): Promise<Response> {
+  if (typeof path !== "string" || !apiPathPattern.test(path)) {
+    throw new Error("Invalid API request path.");
+  }
+
+  const origin = window.location.origin;
+  const target = new URL(path, origin);
+  if (target.origin !== origin || target.pathname !== path) {
+    throw new Error("Invalid API request path.");
+  }
+
   let response: Response;
   try {
-    response = await fetch(path, init);
+    response = await fetch(target.href, {
+      ...init,
+      mode: "same-origin",
+      redirect: "error",
+      credentials: "same-origin",
+    });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new Error("Couldn’t reach the app. Try again.");
