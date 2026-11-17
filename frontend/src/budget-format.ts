@@ -1,6 +1,7 @@
-import type { Category } from "./budget-api";
+import type { EntryCategory } from "./budget-api";
 
-export const categoryNames: Record<Category, string> = {
+export const categoryNames: Record<EntryCategory, string> = {
+  income: "Income",
   bills: "Bills",
   everyday: "Everyday expenses",
   savings: "Savings",
@@ -32,4 +33,18 @@ export function localDay(day = new Date()): string {
   const month = String(day.getMonth() + 1).padStart(2, "0");
   const date = String(day.getDate()).padStart(2, "0");
   return [day.getFullYear(), month, date].join("-");
+}
+
+export function daysInMonth(month: string): number {
+  const [year, number] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, number, 0)).getUTCDate();
+}
+
+export function firstEntryDay(month: string): string {
+  const today = localDay();
+  return today.slice(0, 7) === month ? today : month + "-01";
+}
+
+export function lastDay(month: string): string {
+  return month + "-" + daysInMonth(month);
 }

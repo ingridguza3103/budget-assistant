@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from uuid import UUID
 
 from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -59,3 +60,21 @@ class MonthlyBudget(Base):
     everyday_cents: Mapped[int]
     savings_cents: Mapped[int]
     debt_cents: Mapped[int]
+
+
+class BudgetEntry(Base):
+    __tablename__ = "budget_entries"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('income', 'bills', 'everyday', 'savings', 'debt')",
+            name="ck_entries_category",
+        ),
+        CheckConstraint(f"amount_cents BETWEEN 1 AND {MAX_CENTS}", name="ck_entries_amount"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    budget_id: Mapped[int] = mapped_column(ForeignKey("budgets.id", ondelete="CASCADE"), index=True)
+    entry_date: Mapped[date] = mapped_column(Date)
+    category: Mapped[str] = mapped_column(String(16))
+    description: Mapped[str] = mapped_column(String(140))
+    amount_cents: Mapped[int]
