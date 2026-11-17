@@ -9,6 +9,10 @@ vi.mock("../src/api", () => ({
   getAccount: vi.fn(),
   logout: vi.fn(),
 }));
+vi.mock("../src/budget-api", async (original) => ({
+  ...await original<typeof import("../src/budget-api")>(),
+  listBudgets: vi.fn(async () => []),
+}));
 
 const account = { username: "BudgetUser8" };
 const getAccountMock = vi.mocked(getAccount);

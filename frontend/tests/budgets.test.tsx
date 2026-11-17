@@ -1,0 +1,82 @@
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, expect, test, vi } from "vitest";
+import BudgetWorkspace from "../src/BudgetWorkspace";
+import { type Budget, createBudget, listBudgets, savePlan } from "../src/budget-api";
+import { ApiError } from "../src/api";
+
+vi.mock("../src/budget-api", async (original) => ({
+  ...await original<typeof import("../src/budget-api")>(),
+  listBudgets: vi.fn(),
+  createBudget: vi.fn(),
+  savePlan: vi.fn(),
+}));
+
+const november: Budget = {
+  id: 1,
+  month: "2026-11",
+  planned_income_cents: 0,
+  allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 },
+  planned_remainder_cents: 0,
+};
+
+afterEach(() => {
+  cleanup();
+  vi.resetAllMocks();
+});
+
+test("creates a month, saves euro amounts and reopens the saved card", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([]);
+  vi.mocked(createBudget).mockResolvedValue(november);
+  vi.mocked(savePlan).mockResolvedValue({
+    ...november,
+    planned_income_cents: 250_050,
+    allocations: { ...november.allocations, bills: 100_000 },
+    planned_remainder_cents: 150_050,
+  });
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  expect(await screen.findByText("No budgets yet.")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Month"), { target: { value: "2026-11" } });
+  await user.click(screen.getByRole("button", { name: "Create month" }));
+  expect(vi.mocked(createBudget)).toHaveBeenCalledWith("2026-11");
+
+  const income = await screen.findByLabelText("Planned income");
+  fireEvent.change(income, { target: { value: "2500,50" } });
+  fireEvent.change(screen.getByLabelText("Bills"), { target: { value: "1000" } });
+  await user.click(screen.getByRole("button", { name: "Save plan" }));
+  expect(await screen.findByText("Plan saved.")).toBeTruthy();
+  expect(vi.mocked(savePlan)).toHaveBeenCalledWith(1, {
+    planned_income_cents: 250_050,
+    allocations: { ...november.allocations, bills: 100_000 },
+  });
+
+  await user.click(screen.getByRole("button", { name: "All budgets" }));
+  const card = screen.getByRole("button", { name: "Open November 2026" });
+  expect(within(card).getByText("€1,500.50")).toBeTruthy();
+  await user.click(card);
+  expect((screen.getByLabelText("Planned income") as HTMLInputElement).value).toBe("2500.50");
+});
+
+test("validates amounts before saving", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await user.click(await screen.findByRole("button", { name: "Open November 2026" }));
+  fireEvent.change(screen.getByLabelText("Planned income"), { target: { value: "15.004" } });
+  await user.click(screen.getByRole("button", { name: "Save plan" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("up to two decimal places");
+  expect(savePlan).not.toHaveBeenCalled();
+});
+
+test("retries loading budgets and returns an expired session to login", async () => {
+  vi.mocked(listBudgets)
+    .mockRejectedValueOnce(new Error("Unable to load budgets."))
+    .mockRejectedValueOnce(new ApiError("Log in to continue.", 401));
+  const expireSession = vi.fn();
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={expireSession} />);
+  expect((await screen.findByRole("alert")).textContent).toBe("Unable to load budgets.");
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await vi.waitFor(() => expect(expireSession).toHaveBeenCalledOnce());
+});
