@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     db_port: int = 5432
     db_name: str = "budget_assistant"
     db_user: str = "budget_app"
-    db_password: SecretStr
+    db_password: SecretStr | None = None
+    database_url: SecretStr | None = None
     app_origin: str = "http://127.0.0.1:5173"
 
     @field_validator("app_origin")
