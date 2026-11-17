@@ -47,6 +47,20 @@ class BudgetTestCase(unittest.IsolatedAsyncioTestCase):
 
 
 class MonthlyPlanTest(BudgetTestCase):
+    async def test_copies_the_previous_calendar_month_for_the_same_account(self) -> None:
+        owner = await self.account()
+        previous = await self.new_budget(owner, "2026-12")
+        stranger = await self.account()
+        payload = {"month": "2027-01", **plan(0), "copy_previous": True}
+
+        denied = await stranger.post("/api/budgets", json=payload)
+        self.assertEqual(denied.status_code, 404)
+        copied = await owner.post("/api/budgets", json=payload)
+        self.assertEqual(copied.status_code, 201, copied.text)
+        self.assertEqual(copied.json(), {**previous, "id": copied.json()["id"], "month": "2027-01"})
+        self.assertNotEqual(copied.json()["id"], previous["id"])
+        self.assertEqual((await owner.post("/api/budgets", json=payload)).status_code, 409)
+
     async def test_creates_lists_and_edits_plans_for_one_account(self) -> None:
         owner = await self.account()
         self.assertEqual((await owner.get("/api/budgets")).json(), [])

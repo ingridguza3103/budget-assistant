@@ -9,6 +9,7 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [month, setMonth] = useState(() => localDay().slice(0, 7));
+  const [copyPrevious, setCopyPrevious] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -38,9 +39,10 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
   function addMonth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void action.run(async () => {
-      const created = await createBudget(month);
+      const created = await createBudget(month, copyPrevious);
       storeBudget(created);
       setSelectedId(created.id);
+      setCopyPrevious(false);
     });
   }
 
@@ -72,6 +74,10 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
             <label className="budget-field">Month
               <input type="month" min="1900-01" max="9999-12" value={month} required
                 onChange={(event) => setMonth(event.target.value)} />
+            </label>
+            <label className="budget-check">
+              <input type="checkbox" checked={copyPrevious} onChange={(event) => setCopyPrevious(event.target.checked)} />
+              Copy last month’s plan
             </label>
             <button className="primary-button budget-primary" type="submit" disabled={action.pending}>Create month</button>
             {action.error && <p className="form-error" role="alert">{action.error}</p>}

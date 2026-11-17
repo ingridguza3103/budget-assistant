@@ -30,9 +30,10 @@ export function listBudgets(signal: AbortSignal): Promise<Budget[]> {
   return budgetRequest("", { signal });
 }
 
-export function createBudget(month: string): Promise<Budget> {
+export function createBudget(month: string, copyPrevious: boolean): Promise<Budget> {
   return budgetRequest("", jsonBody("POST", {
     month,
+    copy_previous: copyPrevious,
     planned_income_cents: 0,
     allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 },
   }));

@@ -2,8 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import BudgetWorkspace from "../src/BudgetWorkspace";
-import { type Budget, createBudget, listBudgets, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
+import { type Budget, createBudget, listBudgets, savePlan } from "../src/budget-api";
 
 vi.mock("../src/budget-api", async (original) => ({
   ...await original<typeof import("../src/budget-api")>(),
@@ -39,7 +39,7 @@ test("creates a month, saves euro amounts and reopens the saved card", async () 
   expect(await screen.findByText("No budgets yet.")).toBeTruthy();
   fireEvent.change(screen.getByLabelText("Month"), { target: { value: "2026-11" } });
   await user.click(screen.getByRole("button", { name: "Create month" }));
-  expect(vi.mocked(createBudget)).toHaveBeenCalledWith("2026-11");
+  expect(vi.mocked(createBudget)).toHaveBeenCalledWith("2026-11", false);
 
   const income = await screen.findByLabelText("Planned income");
   fireEvent.change(income, { target: { value: "2500,50" } });
@@ -67,6 +67,19 @@ test("validates amounts before saving", async () => {
   await user.click(screen.getByRole("button", { name: "Save plan" }));
   expect((await screen.findByRole("alert")).textContent).toContain("up to two decimal places");
   expect(savePlan).not.toHaveBeenCalled();
+});
+
+test("requests last month’s plan and shows a missing-plan error", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([]);
+  vi.mocked(createBudget).mockRejectedValue(new Error("You have no budget for the previous month."));
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  const month = await screen.findByLabelText("Month");
+  fireEvent.change(month, { target: { value: "2026-11" } });
+  await user.click(screen.getByRole("checkbox", { name: "Copy last month’s plan" }));
+  await user.click(screen.getByRole("button", { name: "Create month" }));
+  expect(createBudget).toHaveBeenCalledWith("2026-11", true);
+  expect((await screen.findByRole("alert")).textContent).toBe("You have no budget for the previous month.");
 });
 
 test("retries loading budgets and returns an expired session to login", async () => {
