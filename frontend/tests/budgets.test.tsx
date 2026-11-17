@@ -2,8 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import BudgetWorkspace from "../src/BudgetWorkspace";
+import { type Budget, createBudget, listBills, listBudgets, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
-import { type Budget, createBudget, listBudgets, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 
 vi.mock("../src/budget-api", async (original) => ({
   ...await original<typeof import("../src/budget-api")>(),
@@ -11,6 +11,7 @@ vi.mock("../src/budget-api", async (original) => ({
   createBudget: vi.fn(),
   loadSampleMonth: vi.fn(),
   readActivity: vi.fn(),
+  listBills: vi.fn(),
   savePlan: vi.fn(),
 }));
 
@@ -23,6 +24,7 @@ const november: Budget = {
 };
 
 beforeEach(() => {
+  vi.mocked(listBills).mockResolvedValue([]);
   vi.mocked(readActivity).mockResolvedValue({
     entries: [], income_cents: 0, outflow_cents: 0, remainder_cents: 0,
     spending: { bills: 0, everyday: 0, savings: 0, debt: 0 },
