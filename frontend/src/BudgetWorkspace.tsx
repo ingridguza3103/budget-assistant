@@ -1,38 +1,22 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useState } from "react";
+import ActivityPanel from "./ActivityPanel";
 import { type Budget, createBudget, listBudgets } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
 import PlanEditor from "./PlanEditor";
-import { budgetError, useBudgetAction } from "./use-budget-action";
+import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import "./budgets.css";
 
 export default function BudgetWorkspace({ expireSession }: { expireSession: () => void }) {
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const load = useBudgetData(listBudgets, expireSession);
+  const budgets = load.data ?? [];
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [month, setMonth] = useState(() => localDay().slice(0, 7));
   const [copyPrevious, setCopyPrevious] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [loadAttempt, setLoadAttempt] = useState(0);
   const action = useBudgetAction(expireSession);
   const selected = budgets.find((budget) => budget.id === selectedId);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    listBudgets(controller.signal)
-      .then((items) => {
-        if (!controller.signal.aborted) setBudgets(items);
-      })
-      .catch((failure: unknown) => {
-        if (!controller.signal.aborted) setLoadError(budgetError(failure, expireSession));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [expireSession, loadAttempt]);
-
   function storeBudget(budget: Budget) {
-    setBudgets((items) => [...items.filter((item) => item.id !== budget.id), budget]
+    load.setData((items) => [...(items ?? []).filter((item) => item.id !== budget.id), budget]
       .sort((first, second) => second.month.localeCompare(first.month)));
   }
 
@@ -48,25 +32,22 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
 
   if (selected) {
     return (
-      <>
+      <article key={selected.id}>
         <button className="secondary-button" type="button" onClick={() => setSelectedId(null)}>All budgets</button>
         <h1 className="budget-month-heading">{monthName(selected.month)}</h1>
-        <PlanEditor key={selected.id} budget={selected} onSaved={storeBudget} expireSession={expireSession} />
-      </>
+        <PlanEditor budget={selected} onSaved={storeBudget} expireSession={expireSession} />
+        <ActivityPanel budget={selected} expireSession={expireSession} />
+      </article>
     );
   }
 
   return (
     <>
       <h1>My Budgets</h1>
-      {loading ? <p className="budget-status" role="status">Loading your budgets…</p> : loadError ? (
+      {load.loading ? <p className="budget-status" role="status">Loading your budgets…</p> : load.error ? (
         <section className="budget-panel">
-          <p className="form-error" role="alert">{loadError}</p>
-          <button type="button" className="secondary-button" onClick={() => {
-            setLoading(true);
-            setLoadError("");
-            setLoadAttempt((attempt) => attempt + 1);
-          }}>Try again</button>
+          <p className="form-error" role="alert">{load.error}</p>
+          <button type="button" className="secondary-button" onClick={load.retry}>Try again</button>
         </section>
       ) : (
         <>
