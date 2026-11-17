@@ -14,6 +14,29 @@ def entry(category: str = "bills", amount_cents: int = 1_500) -> dict:
 
 
 class ActivityTest(BudgetTestCase):
+    async def test_sample_is_saved_and_never_overwrites_a_budget(self) -> None:
+        owner = await self.account()
+        stranger = await self.account()
+        response = await owner.post("/api/budgets/sample", json={"month": "2026-02"})
+        self.assertEqual(response.status_code, 201, response.text)
+        path = f"/api/budgets/{response.json()['id']}"
+        activity = (await owner.get(path + "/activity")).json()
+        self.assertEqual(activity["income_cents"], 245_000)
+        self.assertEqual(len(activity["entries"]), 7)
+        self.assertTrue(all(item["entry_date"].startswith("2026-02-") for item in activity["entries"]))
+        self.assertEqual((await stranger.get(path + "/activity")).status_code, 404)
+        self.assertEqual((await owner.post("/api/budgets/sample", json={"month": "2026-02"})).status_code, 409)
+        self.assertEqual((await owner.get(path + "/activity")).json(), activity)
+
+        copied = await owner.post("/api/budgets", json={
+            "month": "2026-03", "planned_income_cents": 0, "copy_previous": True,
+            "allocations": {"bills": 0, "everyday": 0, "savings": 0, "debt": 0},
+        })
+        self.assertEqual(copied.status_code, 201, copied.text)
+        self.assertEqual(copied.json()["allocations"], response.json()["allocations"])
+        copied_activity = (await owner.get(f"/api/budgets/{copied.json()['id']}/activity")).json()
+        self.assertEqual(copied_activity["entries"], [])
+
     async def test_creates_edits_and_deletes_dated_entries_and_calculates_totals(self) -> None:
         owner = await self.account()
         budget = await self.new_budget(owner)

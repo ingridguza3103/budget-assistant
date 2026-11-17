@@ -2,13 +2,14 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import BudgetWorkspace from "../src/BudgetWorkspace";
-import { type Budget, createBudget, listBudgets, readActivity, savePlan } from "../src/budget-api";
+import { type Budget, createBudget, listBudgets, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
 
 vi.mock("../src/budget-api", async (original) => ({
   ...await original<typeof import("../src/budget-api")>(),
   listBudgets: vi.fn(),
   createBudget: vi.fn(),
+  loadSampleMonth: vi.fn(),
   readActivity: vi.fn(),
   savePlan: vi.fn(),
 }));
@@ -88,6 +89,32 @@ test("requests last month’s plan and shows a missing-plan error", async () => 
   await user.click(screen.getByRole("button", { name: "Create month" }));
   expect(createBudget).toHaveBeenCalledWith("2026-11", true);
   expect((await screen.findByRole("alert")).textContent).toBe("You have no budget for the previous month.");
+});
+
+test("loads a sample and previews a change without saving", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([]);
+  vi.mocked(loadSampleMonth).mockResolvedValue({
+    ...november,
+    planned_income_cents: 200_000,
+    allocations: { ...november.allocations, bills: 100_000 },
+    planned_remainder_cents: 100_000,
+  });
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  fireEvent.change(await screen.findByLabelText("Month"), { target: { value: "2026-11" } });
+  await user.click(screen.getByRole("button", { name: "Load sample month" }));
+  expect(loadSampleMonth).toHaveBeenCalledWith("2026-11");
+  const scenario = within(await screen.findByRole("region", { name: "What if?" }));
+  await user.click(scenario.getByRole("button", { name: "Preview a change" }));
+  const bills = scenario.getByLabelText("Bills");
+  fireEvent.change(bills, { target: { value: "1100" } });
+  expect(scenario.getByText("€900.00")).toBeTruthy();
+  expect(savePlan).not.toHaveBeenCalled();
+  fireEvent.change(bills, { target: { value: "bad" } });
+  expect(scenario.getByText("Enter valid amounts to see the preview.")).toBeTruthy();
+  await user.click(scenario.getByRole("button", { name: "Discard preview" }));
+  expect(scenario.queryByLabelText("Bills")).toBeNull();
+  expect((screen.getByLabelText("Bills") as HTMLInputElement).value).toBe("1000.00");
 });
 
 test("retries loading budgets and returns an expired session to login", async () => {

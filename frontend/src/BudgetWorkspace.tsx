@@ -1,8 +1,8 @@
 import { type FormEvent, useState } from "react";
 import ActivityPanel from "./ActivityPanel";
-import { type Budget, createBudget, listBudgets } from "./budget-api";
+import { type Budget, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
-import PlanEditor from "./PlanEditor";
+import PlanEditor, { ScenarioPanel } from "./PlanEditor";
 import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import "./budgets.css";
 
@@ -30,6 +30,15 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
     });
   }
 
+  function addSample() {
+    void action.run(async () => {
+      const created = await loadSampleMonth(month);
+      storeBudget(created);
+      setSelectedId(created.id);
+      setCopyPrevious(false);
+    });
+  }
+
   if (selected) {
     return (
       <article key={selected.id}>
@@ -37,6 +46,7 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
         <h1 className="budget-month-heading">{monthName(selected.month)}</h1>
         <PlanEditor budget={selected} onSaved={storeBudget} expireSession={expireSession} />
         <ActivityPanel budget={selected} expireSession={expireSession} />
+        <ScenarioPanel budget={selected} />
       </article>
     );
   }
@@ -60,7 +70,12 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
               <input type="checkbox" checked={copyPrevious} onChange={(event) => setCopyPrevious(event.target.checked)} />
               Copy last month’s plan
             </label>
-            <button className="primary-button budget-primary" type="submit" disabled={action.pending}>Create month</button>
+            <div className="budget-actions">
+              <button className="primary-button budget-primary" type="submit" disabled={action.pending}>Create month</button>
+              <button className="secondary-button" type="button" disabled={action.pending || !month} onClick={addSample}>
+                Load sample month
+              </button>
+            </div>
             {action.error && <p className="form-error" role="alert">{action.error}</p>}
           </form>
           {budgets.length === 0 ? <p className="budget-status">No budgets yet.</p> : (
