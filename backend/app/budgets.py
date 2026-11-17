@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,6 +43,7 @@ class Plan(BaseModel):
 
 class CreateBudget(Plan):
     month: Month
+    copy_previous: bool = False
 
 
 class BudgetView(Plan):
@@ -108,7 +109,20 @@ def list_budgets(db: Database, user: CurrentUser) -> list[BudgetView]:
 
 @router.post("", status_code=201)
 def create_budget(payload: CreateBudget, db: Database, user: CurrentUser) -> BudgetView:
-    budget = insert_budget(db, user.id, month_start(payload.month), payload)
+    month = month_start(payload.month)
+    plan: Plan = payload
+    if payload.copy_previous:
+        previous_month = (month - timedelta(days=1)).replace(day=1)
+        previous = db.scalar(
+            select(MonthlyBudget).where(
+                MonthlyBudget.user_id == user.id,
+                MonthlyBudget.month == previous_month,
+            )
+        )
+        if previous is None:
+            raise HTTPException(status_code=404, detail="You have no budget for the previous month.")
+        plan = budget_view(previous)
+    budget = insert_budget(db, user.id, month, plan)
     db.commit()
     return budget_view(budget)
 
