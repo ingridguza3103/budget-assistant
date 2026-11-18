@@ -93,3 +93,8 @@ fieldset.budget-fields { margin: 18px 0; border: 0; padding: 0; min-width: 0; }
   .budget-create { grid-template-columns: 1fr; }
   .budget-create .budget-primary { justify-self: start; }
 }
+
+.month-deletion { margin-top: 32px; }
+.month-deletion p { margin-bottom: 10px; }
+.month-deletion button + button { margin-left: 8px; }
+.danger { color: var(--error-ink); }

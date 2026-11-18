@@ -70,6 +70,10 @@ export async function savePlan(id: number, plan: Plan): Promise<Budget> {
   return budgetRequest(budgetPath(id), jsonBody("PUT", plan));
 }
 
+export async function deleteBudget(id: number): Promise<void> {
+  await ensureSuccess(await apiRequest("/api/budgets" + budgetPath(id), { method: "DELETE" }));
+}
+
 export function loadSampleMonth(month: string): Promise<Budget> {
   return budgetRequest("/sample", jsonBody("POST", { month }));
 }

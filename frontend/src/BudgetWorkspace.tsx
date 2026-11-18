@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { ApiError } from "./api";
 import MonthContent from "./MonthContent";
+import MonthDeletion from "./MonthDeletion";
 import MonthPicker, { validMonth } from "./MonthPicker";
 import BillCalendar from "./BillCalendar";
 import { type Budget, type Plan, savePlan, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
@@ -86,6 +87,10 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
         </MonthContent>
         <ScenarioPanel budget={selected} />
         <BillCalendar budget={selected} expireSession={expireSession} />
+        <MonthDeletion key={selected.id} budget={selected} expireSession={expireSession} onDeleted={() => {
+          load.setData(items => (items ?? []).filter(item => item.id !== selected.id));
+          setSelectedId(null);
+        }} />
       </article>
     );
   }

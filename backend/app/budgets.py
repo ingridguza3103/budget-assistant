@@ -1,9 +1,9 @@
 from datetime import date, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field, computed_field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -138,3 +138,10 @@ def update_plan(payload: Plan, budget: OwnedBudget, db: Database) -> BudgetView:
         setattr(budget, column, cents)
     db.commit()
     return budget_view(budget)
+
+
+@router.delete("/{budget_id}", status_code=204)
+def delete_budget(budget: OwnedBudget, db: Database) -> Response:
+    db.execute(delete(MonthlyBudget).where(MonthlyBudget.id == budget.id, MonthlyBudget.user_id == budget.user_id))
+    db.commit()
+    return Response(status_code=204)
