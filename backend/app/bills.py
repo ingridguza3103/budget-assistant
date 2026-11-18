@@ -15,13 +15,16 @@ from .models import ScheduledBill
 router = APIRouter(prefix="/api/budgets/{budget_id}/bills", tags=["bills"])
 
 
-class NewBill(BaseModel):
+class BillFields(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    id: UUID
     due_date: EntryDate
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
     amount_cents: PositiveCents
+
+
+class NewBill(BillFields):
+    id: UUID
 
 
 class BillView(NewBill):
@@ -67,6 +70,20 @@ def add_bill(payload: NewBill, budget: OwnedBudget, db: Database) -> list[BillVi
             or BillView.model_validate(existing).model_dump(exclude={"paid"}) != payload.model_dump()
         ):
             raise HTTPException(status_code=409, detail="This bill already has different details.")
+    result = bill_list(db, budget.id)
+    db.commit()
+    return result
+
+
+@router.put("/{bill_id}")
+def edit_bill(bill_id: UUID, payload: BillFields, budget: OwnedBudget, db: Database) -> list[BillView]:
+    require_budget_date(payload.due_date, budget)
+    statement = (
+        update(ScheduledBill).where(ScheduledBill.id == bill_id, ScheduledBill.budget_id == budget.id)
+        .values(**payload.model_dump()).returning(ScheduledBill.id)
+    )
+    if db.scalar(statement) is None:
+        raise HTTPException(status_code=404, detail="Bill not found.")
     result = bill_list(db, budget.id)
     db.commit()
     return result

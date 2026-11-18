@@ -29,6 +29,11 @@ export function monthName(month: string): string {
   return months.format(new Date(month + "-01T00:00:00Z"));
 }
 
+export function shortDay(value: string) {
+  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" })
+    .format(new Date(value + "T00:00:00Z"));
+}
+
 export function localDay(day = new Date()): string {
   const month = String(day.getMonth() + 1).padStart(2, "0");
   const date = String(day.getDate()).padStart(2, "0");
