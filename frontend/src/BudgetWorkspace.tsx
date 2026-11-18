@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState, type RefObject } from "react";
 import { ApiError } from "./api";
 import MonthContent from "./MonthContent";
 import SampleBudget from "./SampleBudget";
@@ -7,7 +7,8 @@ import MonthPicker, { validMonth } from "./MonthPicker";
 import BillCalendar from "./BillCalendar";
 import { type Budget, type Plan, savePlan, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
-import PlanEditor, { ScenarioPanel } from "./PlanEditor";
+import usePlanLeave from "./use-plan-leave";
+import PlanEditor from "./PlanEditor";
 import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import "./budgets.css";
 
@@ -19,7 +20,14 @@ function precedingMonth(month: string) {
   return date.toISOString().slice(0, 7);
 }
 
-export default function BudgetWorkspace({ expireSession }: { expireSession: () => void }) {
+export default function BudgetWorkspace({ expireSession, onLeave }: {
+  expireSession: () => void; onLeave?: RefObject<((action: () => void) => void) | null>;
+}) {
+  const { guard, leave, prompt } = usePlanLeave();
+  useEffect(() => {
+    if (onLeave) onLeave.current = leave;
+    return () => { if (onLeave) onLeave.current = null; };
+  });
   const load = useBudgetData(listBudgets, expireSession);
   const budgets = load.data ?? [];
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -67,11 +75,11 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
   if (preview) return <SampleBudget month={month} occupied={!!existing} expireSession={expireSession}
     pending={action.pending} error={action.error} onSave={addSample} onBack={() => setPreview(false)} />;
 
-  if (draft) return <article>
-    <button className="secondary-button" type="button" onClick={() => setDraft(null)}>All budgets</button>
+  if (draft) return <article>{prompt}
+    <button className="secondary-button" type="button" onClick={() => leave(() => setDraft(null))}>All budgets</button>
     <h1 className="budget-month-heading">{monthName(draft.month)}</h1>
     <p className="budget-status">Save your plan to start recording activity and bills.</p>
-    <PlanEditor budget={draft.plan} expireSession={expireSession} persist={saveNewMonth} onSaved={created => {
+    <PlanEditor budget={draft.plan} guard={guard} isNew expireSession={expireSession} persist={saveNewMonth} onSaved={created => {
       storeBudget(created);
       setSelectedId(created.id);
       setDraft(null);
@@ -85,13 +93,12 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
 
   if (selected) {
     return (
-      <article key={selected.id}>
-        <button className="secondary-button" type="button" onClick={() => setSelectedId(null)}>All budgets</button>
+      <article key={selected.id}>{prompt}
+        <button className="secondary-button" type="button" onClick={() => leave(() => setSelectedId(null))}>All budgets</button>
         <h1 className="budget-month-heading">{monthName(selected.month)}</h1>
         <MonthContent budget={selected} expireSession={expireSession}>
-          <PlanEditor budget={selected} persist={plan => savePlan(selected.id, plan)} onSaved={storeBudget} expireSession={expireSession} />
+          <PlanEditor guard={guard} budget={selected} persist={plan => savePlan(selected.id, plan)} onSaved={storeBudget} expireSession={expireSession} />
         </MonthContent>
-        <ScenarioPanel budget={selected} />
         <BillCalendar budget={selected} expireSession={expireSession} />
         <MonthDeletion key={selected.id} budget={selected} expireSession={expireSession} onDeleted={() => {
           load.setData(items => (items ?? []).filter(item => item.id !== selected.id));

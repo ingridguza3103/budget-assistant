@@ -98,3 +98,9 @@ fieldset.budget-fields { margin: 18px 0; border: 0; padding: 0; min-width: 0; }
 .month-deletion p { margin-bottom: 10px; }
 .month-deletion button + button { margin-left: 8px; }
 .danger { color: var(--error-ink); }
+
+.amount-error { color: var(--error-ink); font-weight: 500; }
+.draft-tag { font-size: .85rem; color: var(--link); }
+.leave-prompt { position: sticky; top: 8px; z-index: 3; padding: 16px; border: 2px solid var(--link);
+  border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px #183d471c; }
+.leave-prompt .budget-actions { margin-top: 10px; }

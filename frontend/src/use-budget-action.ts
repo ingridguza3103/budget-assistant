@@ -15,14 +15,16 @@ export function useBudgetAction(expireSession: () => void) {
   const active = useRef(false);
 
   async function run(action: () => Promise<void>) {
-    if (active.current) return;
+    if (active.current) return false;
     active.current = true;
     setError("");
     setPending(true);
     try {
       await action();
+      return true;
     } catch (failure) {
       setError(budgetError(failure, expireSession));
+      return false;
     } finally {
       active.current = false;
       setPending(false);

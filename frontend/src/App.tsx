@@ -127,6 +127,7 @@ function AuthForm({ onAccount }: { onAccount: (account: Account) => void }) {
 }
 
 function MyBudgets({ account, onLogout }: { account: Account; onLogout: () => void }) {
+  const leave = useRef<((action: () => void) => void) | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -149,14 +150,14 @@ function MyBudgets({ account, onLogout }: { account: Account; onLogout: () => vo
         <Brand />
         <div className="account-controls">
           <span className="account-name" title={account.username}>{account.username}</span>
-          <button type="button" className="secondary-button" onClick={endSession} disabled={pending}>
+          <button type="button" className="secondary-button" onClick={() => leave.current ? leave.current(() => void endSession()) : void endSession()} disabled={pending}>
             {pending ? "Logging out…" : "Log out"}
           </button>
         </div>
       </header>
       <main className="budgets">
         {error && <p className="form-error" role="alert">{error}</p>}
-        <BudgetWorkspace expireSession={onLogout} />
+        <BudgetWorkspace expireSession={onLogout} onLeave={leave} />
       </main>
     </>
   );
