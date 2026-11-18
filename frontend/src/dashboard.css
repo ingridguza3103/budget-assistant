@@ -1,0 +1,22 @@
+.month-figures, .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 16px; }
+.month-figures { padding-block: 20px; gap: 8px; border-bottom: 1px solid var(--line); }
+.month-figures dt { color: var(--muted); }
+.month-figures dd { margin: 5px 0; font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700; }
+.allocation-chart { display: flex; align-items: center; gap: 24px; margin: 20px 0; flex-wrap: wrap; }
+.allocation-ring { width: 110px; aspect-ratio: 1; border-radius: 50%; position: relative; }
+.allocation-ring::after { content: ""; position: absolute; inset: 23%; background: var(--surface); border-radius: 50%; }
+.allocation-chart ul, .category-card ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.allocation-chart li, .category-card li { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.allocation-chart li b, .category-card li b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.allocation-chart i { width: 10px; height: 10px; border-radius: 2px; }
+.category-card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.category-card h3 { margin: 0 0 10px; font-size: 1rem; }
+.category-card table { width: 100%; font-size: .84rem; font-variant-numeric: tabular-nums; }
+.category-card th, .category-card td { text-align: right; }
+.category-card th { font-weight: 500; color: var(--muted); }
+.category-card p, .category-card details { padding-top: 10px; font-size: .85rem; }
+.category-card summary { cursor: pointer; color: var(--link); }
+.category-card li { overflow-wrap: anywhere; }
+.category-track { height: 8px; border-radius: 8px; overflow: hidden; background: #e2eef2; margin: 10px 0; }
+.category-track div { height: 100%; }
+.variance-warning { color: var(--error-ink); font-weight: 650; }

@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { ApiError } from "./api";
-import ActivityPanel from "./ActivityPanel";
+import MonthContent from "./MonthContent";
 import MonthPicker, { validMonth } from "./MonthPicker";
 import BillCalendar from "./BillCalendar";
 import { type Budget, type Plan, savePlan, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
@@ -81,8 +81,9 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
       <article key={selected.id}>
         <button className="secondary-button" type="button" onClick={() => setSelectedId(null)}>All budgets</button>
         <h1 className="budget-month-heading">{monthName(selected.month)}</h1>
-        <PlanEditor budget={selected} persist={plan => savePlan(selected.id, plan)} onSaved={storeBudget} expireSession={expireSession} />
-        <ActivityPanel budget={selected} expireSession={expireSession} />
+        <MonthContent budget={selected} expireSession={expireSession}>
+          <PlanEditor budget={selected} persist={plan => savePlan(selected.id, plan)} onSaved={storeBudget} expireSession={expireSession} />
+        </MonthContent>
         <ScenarioPanel budget={selected} />
         <BillCalendar budget={selected} expireSession={expireSession} />
       </article>
