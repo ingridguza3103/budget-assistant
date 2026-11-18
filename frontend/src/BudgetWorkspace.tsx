@@ -1,17 +1,17 @@
-import { type FormEvent, useEffect, useState, type RefObject } from "react";
+import { type FormEvent, type RefObject, useEffect, useState } from "react";
 import { ApiError } from "./api";
-import useBudgetRoute from "./use-budget-route";
+import BillCalendar from "./BillCalendar";
+import { type Budget, createBudget, listBudgets, loadSampleMonth, type Plan, savePlan } from "./budget-api";
+import { localDay, money, monthName } from "./budget-format";
+import "./budgets.css";
 import MonthContent from "./MonthContent";
-import SampleBudget from "./SampleBudget";
 import MonthDeletion from "./MonthDeletion";
 import MonthPicker, { validMonth } from "./MonthPicker";
-import BillCalendar from "./BillCalendar";
-import { type Budget, type Plan, savePlan, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
-import { localDay, money, monthName } from "./budget-format";
-import usePlanLeave from "./use-plan-leave";
 import PlanEditor from "./PlanEditor";
+import SampleBudget from "./SampleBudget";
 import { useBudgetAction, useBudgetData } from "./use-budget-action";
-import "./budgets.css";
+import useBudgetRoute from "./use-budget-route";
+import usePlanLeave from "./use-plan-leave";
 
 const emptyPlan: Plan = { planned_income_cents: 0, allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 } };
 
@@ -37,7 +37,7 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
   const [preview, setPreview] = useState(false);
   const [draft, setDraft] = useState<{ month: string; plan: Plan } | null>(null);
   const { route, navigate } = useBudgetRoute(guard, leave, () => { setDraft(null); setPreview(false); });
-  const years = [...new Set(budgets.map(item => item.month.slice(0, 4)))].sort().reverse();
+  const years = [...new Set(budgets.map(item => item.month.slice(0, 4)))].sort((first, second) => second.localeCompare(first));
   const visibleBudgets = years.includes(yearFilter) ? budgets.filter(item => item.month.startsWith(yearFilter)) : budgets;
   const existing = budgets.find(item => item.month === month);
   const sourceMonth = validMonth(month) ? precedingMonth(month) : "";
