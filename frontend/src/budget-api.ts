@@ -74,6 +74,12 @@ export async function deleteBudget(id: number): Promise<void> {
   await ensureSuccess(await apiRequest("/api/budgets" + budgetPath(id), { method: "DELETE" }));
 }
 
+export type SamplePreview = { plan: Plan; activity: Activity; bills: Bill[] };
+
+export function previewSampleMonth(month: string, signal: AbortSignal): Promise<SamplePreview> {
+  return budgetRequest("/sample/preview", { ...jsonBody("POST", { month }), signal });
+}
+
 export function loadSampleMonth(month: string): Promise<Budget> {
   return budgetRequest("/sample", jsonBody("POST", { month }));
 }

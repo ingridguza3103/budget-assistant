@@ -88,7 +88,7 @@ fieldset.budget-fields { margin: 18px 0; border: 0; padding: 0; min-width: 0; }
 .bill-day-due { outline: 1px solid var(--sky); outline-offset: -1px; }
 .bill-day small { display: block; color: var(--link); font-size: .675rem; }
 
-.sample-action { grid-column: 1 / -1; justify-self: start; }
+.sample-action { margin-top: 12px; }
 @media (max-width: 760px) {
   .budget-create { grid-template-columns: 1fr; }
   .budget-create .budget-primary { justify-self: start; }

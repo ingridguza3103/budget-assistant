@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import BudgetWorkspace from "../src/BudgetWorkspace";
-import { type Budget, deleteBudget, createBudget, listBills, listBudgets, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
+import { type Budget, deleteBudget, createBudget, listBills, listBudgets, previewSampleMonth, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
 
 vi.mock("../src/budget-api", async (original) => ({
@@ -11,6 +11,7 @@ vi.mock("../src/budget-api", async (original) => ({
   deleteBudget: vi.fn(),
   createBudget: vi.fn(),
   loadSampleMonth: vi.fn(),
+  previewSampleMonth: vi.fn(),
   readActivity: vi.fn(),
   listBills: vi.fn(),
   savePlan: vi.fn(),
@@ -123,7 +124,12 @@ test("loads a sample and previews a change without saving", async () => {
   render(<BudgetWorkspace expireSession={vi.fn()} />);
   await screen.findByLabelText("Year");
   selectNovember();
-  await user.click(screen.getByRole("button", { name: "Load sample month" }));
+  vi.mocked(previewSampleMonth).mockResolvedValue({ plan: november, bills: [],
+    activity: { entries: [], spending: november.allocations, income_cents: 0, outflow_cents: 0, remainder_cents: 0 } });
+  await user.click(screen.getByRole("button", { name: "Try a sample budget" }));
+  await screen.findByRole("heading", { name: "Sample calendar" });
+  expect(loadSampleMonth).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Save sample as November 2026" }));
   expect(loadSampleMonth).toHaveBeenCalledWith("2026-11");
   const scenario = within(await screen.findByRole("region", { name: "What if?" }));
   await user.click(scenario.getByRole("button", { name: "Preview a change" }));
