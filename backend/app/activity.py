@@ -66,6 +66,10 @@ def activity_view(db: Session, budget: MonthlyBudget) -> ActivityView:
         .order_by(BudgetEntry.entry_date.desc(), BudgetEntry.id)
     )
     entries = [EntryView.model_validate(record) for record in records]
+    return summarize_entries(entries)
+
+
+def summarize_entries(entries: list[EntryView]) -> ActivityView:
     spending = {category: 0 for category in CATEGORIES}
     income = 0
     for entry in entries:

@@ -33,3 +33,17 @@ class BillCalendarTest(BudgetTestCase):
         self.assertEqual((await stranger.post(path, json=bill)).status_code, 404)
         self.assertEqual((await stranger.put(f"{path}/{bill['id']}/status", json={"paid": True})).status_code, 404)
         self.assertEqual((await owner.post(path, json=bill)).status_code, 400)
+
+    async def test_sample_preview_and_saved_copy_have_activity_and_bills(self) -> None:
+        owner = await self.account()
+        payload = {"month": "2028-02"}
+        preview = await owner.post("/api/budgets/sample/preview", json=payload)
+        self.assertEqual(preview.status_code, 200, preview.text)
+        self.assertEqual((await owner.get("/api/budgets")).json(), [])
+        self.assertEqual(len(preview.json()["activity"]["entries"]), 7)
+        self.assertEqual([bill["paid"] for bill in preview.json()["bills"]], [True, False])
+        saved = await owner.post("/api/budgets/sample", json=payload)
+        base = f"/api/budgets/{saved.json()['id']}"
+        self.assertEqual((await owner.post("/api/budgets/sample", json=payload)).status_code, 409)
+        self.assertEqual(len((await owner.get(base + "/bills")).json()), 2)
+        self.assertEqual((await owner.get(base + "/activity")).json()["outflow_cents"], preview.json()["activity"]["outflow_cents"])

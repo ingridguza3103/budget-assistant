@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { ApiError } from "./api";
 import MonthContent from "./MonthContent";
+import SampleBudget from "./SampleBudget";
 import MonthDeletion from "./MonthDeletion";
 import MonthPicker, { validMonth } from "./MonthPicker";
 import BillCalendar from "./BillCalendar";
@@ -24,6 +25,7 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [month, setMonth] = useState(() => localDay().slice(0, 7));
   const [copyPrevious, setCopyPrevious] = useState(false);
+  const [preview, setPreview] = useState(false);
   const [draft, setDraft] = useState<{ month: string; plan: Plan } | null>(null);
   const existing = budgets.find(item => item.month === month);
   const sourceMonth = validMonth(month) ? precedingMonth(month) : "";
@@ -55,11 +57,15 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
   function addSample() {
     void action.run(async () => {
       const created = await loadSampleMonth(month);
+      setPreview(false);
       storeBudget(created);
       setSelectedId(created.id);
       setCopyPrevious(false);
     });
   }
+
+  if (preview) return <SampleBudget month={month} occupied={!!existing} expireSession={expireSession}
+    pending={action.pending} error={action.error} onSave={addSample} onBack={() => setPreview(false)} />;
 
   if (draft) return <article>
     <button className="secondary-button" type="button" onClick={() => setDraft(null)}>All budgets</button>
@@ -114,12 +120,12 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
               <button className="primary-button budget-primary" type="submit" disabled={action.pending || !validMonth(month)}>
                 {existing ? "Open budget for " + monthName(month) : (budgets.length ? "Start a month" : "Create my first budget")}
               </button>
-              <button className="secondary-button sample-action" type="button" disabled={action.pending || !validMonth(month)} onClick={addSample}>
-                Load sample month
-              </button>
+
             {!previous && sourceMonth && !existing && <small className="copy-hint">No plan saved for {monthName(sourceMonth)}.</small>}
             {action.error && <p className="form-error" role="alert">{action.error}</p>}
           </form>
+          <button className="secondary-button sample-action" type="button" disabled={!validMonth(month)}
+            onClick={() => setPreview(true)}>Try a sample budget</button>
           {budgets.length === 0 ? <p className="budget-status">No budgets yet.</p> : (
             <ul className="budget-grid">
               {budgets.map((budget) => (
