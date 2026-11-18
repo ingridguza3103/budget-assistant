@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import ActivityPanel from "./ActivityPanel";
+import MonthPicker, { validMonth } from "./MonthPicker";
 import BillCalendar from "./BillCalendar";
 import { type Budget, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
@@ -64,20 +65,15 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
       ) : (
         <>
           <form className="budget-panel budget-fields budget-create" onSubmit={addMonth}>
-            <label className="budget-field">Month
-              <input type="month" min="1900-01" max="9999-12" value={month} required
-                onChange={(event) => setMonth(event.target.value)} />
-            </label>
+            <MonthPicker value={month} onChange={setMonth} />
             <label className="budget-check">
               <input type="checkbox" checked={copyPrevious} onChange={(event) => setCopyPrevious(event.target.checked)} />
               Copy last month’s plan
             </label>
-            <div className="budget-actions">
-              <button className="primary-button budget-primary" type="submit" disabled={action.pending}>Create month</button>
-              <button className="secondary-button" type="button" disabled={action.pending || !month} onClick={addSample}>
+              <button className="primary-button budget-primary" type="submit" disabled={action.pending || !validMonth(month)}>Create month</button>
+              <button className="secondary-button sample-action" type="button" disabled={action.pending || !validMonth(month)} onClick={addSample}>
                 Load sample month
               </button>
-            </div>
             {action.error && <p className="form-error" role="alert">{action.error}</p>}
           </form>
           {budgets.length === 0 ? <p className="budget-status">No budgets yet.</p> : (

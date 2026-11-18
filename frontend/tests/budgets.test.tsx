@@ -23,6 +23,23 @@ const november: Budget = {
   planned_remainder_cents: 0,
 };
 
+function selectNovember() {
+  fireEvent.change(screen.getByLabelText("Year"), { target: { value: "2026" } });
+  fireEvent.change(screen.getByLabelText("Month"), { target: { value: "11" } });
+}
+
+test("chooses a year directly and rejects an incomplete year", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([]);
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  const year = await screen.findByLabelText("Year");
+  fireEvent.change(year, { target: { value: "20" } });
+  expect((screen.getByRole("button", { name: "Create month" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(year, { target: { value: "2031" } });
+  await userEvent.selectOptions(screen.getByLabelText("Month"), "03");
+  expect((screen.getByRole("button", { name: "Create month" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(createBudget).not.toHaveBeenCalled();
+});
+
 beforeEach(() => {
   vi.mocked(listBills).mockResolvedValue([]);
   vi.mocked(readActivity).mockResolvedValue({
@@ -48,7 +65,7 @@ test("creates a month, saves euro amounts and reopens the saved card", async () 
   const user = userEvent.setup();
   render(<BudgetWorkspace expireSession={vi.fn()} />);
   expect(await screen.findByText("No budgets yet.")).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Month"), { target: { value: "2026-11" } });
+  selectNovember();
   await user.click(screen.getByRole("button", { name: "Create month" }));
   expect(vi.mocked(createBudget)).toHaveBeenCalledWith("2026-11", false);
 
@@ -85,8 +102,8 @@ test("requests last month’s plan and shows a missing-plan error", async () => 
   vi.mocked(createBudget).mockRejectedValue(new Error("You have no budget for the previous month."));
   const user = userEvent.setup();
   render(<BudgetWorkspace expireSession={vi.fn()} />);
-  const month = await screen.findByLabelText("Month");
-  fireEvent.change(month, { target: { value: "2026-11" } });
+  await screen.findByLabelText("Year");
+  selectNovember();
   await user.click(screen.getByRole("checkbox", { name: "Copy last month’s plan" }));
   await user.click(screen.getByRole("button", { name: "Create month" }));
   expect(createBudget).toHaveBeenCalledWith("2026-11", true);
@@ -103,7 +120,8 @@ test("loads a sample and previews a change without saving", async () => {
   });
   const user = userEvent.setup();
   render(<BudgetWorkspace expireSession={vi.fn()} />);
-  fireEvent.change(await screen.findByLabelText("Month"), { target: { value: "2026-11" } });
+  await screen.findByLabelText("Year");
+  selectNovember();
   await user.click(screen.getByRole("button", { name: "Load sample month" }));
   expect(loadSampleMonth).toHaveBeenCalledWith("2026-11");
   const scenario = within(await screen.findByRole("region", { name: "What if?" }));
