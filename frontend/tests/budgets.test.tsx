@@ -169,3 +169,25 @@ test("requires confirmation to delete a named month", async () => {
   expect(deleteBudget).toHaveBeenCalledWith(1);
   expect(await screen.findByText("No budgets yet.")).toBeTruthy();
 });
+
+test("updates the draft remainder and protects leaving until the user decides", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Open November 2026" }));
+  const plan = within(screen.getByRole("region", { name: "Monthly plan" }));
+  fireEvent.change(plan.getByLabelText("Savings"), { target: { value: "10" } });
+  expect(plan.getByText("€10.00 overallocated")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "All budgets" }));
+  await user.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(plan.getByText("Unsaved changes")).toBeTruthy();
+  await user.click(plan.getByRole("button", { name: "Discard changes" }));
+  const scenario = within(screen.getByRole("region", { name: "What if?" }));
+  await user.click(scenario.getByRole("button", { name: "Preview a change" }));
+  fireEvent.change(scenario.getByLabelText("Savings"), { target: { value: "25" } });
+  await user.click(scenario.getByRole("button", { name: "Use this preview" }));
+  expect(plan.getByText("€25.00 overallocated")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "All budgets" }));
+  await user.click(screen.getByRole("button", { name: "Discard and leave" }));
+  expect(savePlan).not.toHaveBeenCalled();
+});
