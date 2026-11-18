@@ -1,5 +1,6 @@
 import secrets
 import unittest
+from uuid import uuid4
 
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
@@ -105,3 +106,20 @@ class MonthlyPlanTest(BudgetTestCase):
             invalid = await owner.post("/api/budgets", json={"month": month, **payload})
             self.assertEqual(invalid.status_code, 422, invalid.text)
         self.assertEqual(len((await owner.get("/api/budgets")).json()), 1)
+
+    async def test_delete_only_removes_the_owned_month_and_its_children(self) -> None:
+        owner, stranger = await self.account(), await self.account()
+        november = await self.new_budget(owner)
+        december = await self.new_budget(owner, "2026-12")
+        base = f"/api/budgets/{november['id']}"
+        bill = {"id": str(uuid4()), "name": "Rent", "due_date": "2026-11-08", "amount_cents": 1200}
+        entry = {"id": str(uuid4()), "entry_date": "2026-11-08", "category": "bills", "amount_cents": 1200}
+        self.assertEqual((await owner.post(base + "/bills", json=bill)).status_code, 201)
+        self.assertEqual((await owner.post(base + "/entries", json=entry)).status_code, 201)
+        self.assertEqual((await stranger.delete(base)).status_code, 404)
+        self.assertEqual((await owner.delete(base)).status_code, 204)
+        self.assertEqual((await owner.get("/api/budgets")).json(), [december])
+        recreated = await self.new_budget(owner)
+        path = f"/api/budgets/{recreated['id']}"
+        self.assertEqual((await owner.get(path + "/bills")).json(), [])
+        self.assertEqual((await owner.get(path + "/activity")).json()["entries"], [])

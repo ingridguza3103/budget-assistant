@@ -1,41 +1,10 @@
-import { type FormEvent, useCallback, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import {
-  addEntry, type Activity, type Budget, categories, deleteEntry, editEntry,
-  type Entry, entryCategories, type EntryInput, readActivity,
+  addEntry, type Activity, type Budget, deleteEntry, editEntry,
+  type Entry, entryCategories, type EntryInput,
 } from "./budget-api";
 import { amountInput, categoryNames, firstEntryDay, lastDay, money, parseCents } from "./budget-format";
-import { useBudgetAction, useBudgetData } from "./use-budget-action";
-
-function Comparison({ budget, activity }: { budget: Budget; activity: Activity }) {
-  return (
-    <>
-      <dl className="budget-totals">
-        <div><dt>Income received</dt><dd>{money(activity.income_cents)}</dd></div>
-        <div><dt>Recorded outflow</dt><dd>{money(activity.outflow_cents)}</dd></div>
-        <div><dt>Actual remainder</dt><dd>{money(activity.remainder_cents)}</dd></div>
-      </dl>
-      <div className="budget-table-wrap">
-        <table className="budget-table">
-          <caption>Planned vs. actual</caption>
-          <thead><tr><th scope="col">Category</th><th scope="col">Planned</th><th scope="col">Actual</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Income</th><td>{money(budget.planned_income_cents)}</td><td>{money(activity.income_cents)}</td></tr>
-            {categories.map((category) => (
-              <tr key={category}>
-                <th scope="row">{categoryNames[category]}</th>
-                <td>{money(budget.allocations[category])}</td>
-                <td>
-                  {money(activity.spending[category])}
-                  {activity.spending[category] > budget.allocations[category] && <span className="budget-over">Over budget</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
+import { useBudgetAction } from "./use-budget-action";
 
 type EntryFields = Omit<EntryInput, "amount_cents"> & { amount: string };
 
@@ -48,9 +17,9 @@ function initialFields(month: string, entry: Entry | null): EntryFields {
   };
 }
 
-export default function ActivityPanel({ budget, expireSession }: { budget: Budget; expireSession: () => void }) {
-  const load = useCallback((signal: AbortSignal) => readActivity(budget.id, signal), [budget.id]);
-  const { data: activity, setData: setActivity, loading, error, retry } = useBudgetData(load, expireSession);
+export default function ActivityPanel({ budget, expireSession, activity, setActivity }: {
+  budget: Budget; expireSession: () => void; activity: Activity; setActivity: (activity: Activity) => void;
+}) {
   const action = useBudgetAction(expireSession);
   const [editing, setEditing] = useState<Entry | null>(null);
   const [fields, setFields] = useState(() => initialFields(budget.month, null));
@@ -92,13 +61,6 @@ export default function ActivityPanel({ budget, expireSession }: { budget: Budge
   return (
     <section className="budget-panel" aria-labelledby="activity-heading">
       <h2 id="activity-heading">Actual activity</h2>
-      {loading && <p className="budget-status" role="status">Loading activity…</p>}
-      {error && <div>
-        <p className="form-error" role="alert">{error}</p>
-        <button className="secondary-button" type="button" onClick={retry}>Retry activity</button>
-      </div>}
-      {activity && <>
-        <Comparison budget={budget} activity={activity} />
         <form onSubmit={save}>
           <fieldset className="budget-fields" aria-label={editing ? "Edit activity entry" : "New activity entry"}
             disabled={action.pending}>
@@ -146,7 +108,6 @@ export default function ActivityPanel({ budget, expireSession }: { budget: Budge
             ))}
           </ul>
         ) : <p className="budget-status">No activity recorded.</p>}
-      </>}
     </section>
   );
 }

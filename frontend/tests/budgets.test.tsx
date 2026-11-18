@@ -2,12 +2,13 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import BudgetWorkspace from "../src/BudgetWorkspace";
-import { type Budget, createBudget, listBills, listBudgets, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
+import { type Budget, deleteBudget, createBudget, listBills, listBudgets, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
 
 vi.mock("../src/budget-api", async (original) => ({
   ...await original<typeof import("../src/budget-api")>(),
   listBudgets: vi.fn(),
+  deleteBudget: vi.fn(),
   createBudget: vi.fn(),
   loadSampleMonth: vi.fn(),
   readActivity: vi.fn(),
@@ -147,4 +148,18 @@ test("retries loading budgets and returns an expired session to login", async ()
   expect((await screen.findByRole("alert")).textContent).toBe("Unable to load budgets.");
   await user.click(screen.getByRole("button", { name: "Try again" }));
   await vi.waitFor(() => expect(expireSession).toHaveBeenCalledOnce());
+});
+
+test("requires confirmation to delete a named month", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Open November 2026" }));
+  await user.click(screen.getByRole("button", { name: "Delete month" }));
+  await user.click(screen.getByRole("button", { name: "Cancel deletion" }));
+  expect(deleteBudget).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Delete month" }));
+  await user.click(screen.getByRole("button", { name: "Delete November 2026" }));
+  expect(deleteBudget).toHaveBeenCalledWith(1);
+  expect(await screen.findByText("No budgets yet.")).toBeTruthy();
 });
