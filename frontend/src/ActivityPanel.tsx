@@ -1,6 +1,6 @@
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
-  addEntry, type Activity, type Budget, deleteEntry, editEntry,
+  addEntry, type Activity, type Bill, type Budget, deleteEntry, editEntry,
   type Entry, entryCategories, type EntryInput,
 } from "./budget-api";
 import { amountInput, categoryNames, firstEntryDay, lastDay, money, parseCents } from "./budget-format";
@@ -17,13 +17,20 @@ function initialFields(month: string, entry: Entry | null): EntryFields {
   };
 }
 
-export default function ActivityPanel({ budget, expireSession, activity, setActivity }: {
-  budget: Budget; expireSession: () => void; activity: Activity; setActivity: (activity: Activity) => void;
+export default function ActivityPanel({ budget, expireSession, activity, setActivity, payment }: {
+  budget: Budget; expireSession: () => void; activity: Activity; payment?: Bill; setActivity: (activity: Activity) => void;
 }) {
   const action = useBudgetAction(expireSession);
   const [editing, setEditing] = useState<Entry | null>(null);
-  const [fields, setFields] = useState(() => initialFields(budget.month, null));
+  const [fields, setFields] = useState<EntryFields>(() => payment ? {
+    category: "bills", entry_date: payment.due_date, description: payment.name, amount: amountInput(payment.amount_cents),
+  } : initialFields(budget.month, null));
+  const activityHeading = useRef<HTMLHeadingElement>(null);
   const pendingId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (payment) activityHeading.current?.focus();
+  }, [payment]);
 
   function change(next: Partial<EntryFields>) {
     pendingId.current = null;
@@ -60,7 +67,7 @@ export default function ActivityPanel({ budget, expireSession, activity, setActi
 
   return (
     <section className="budget-panel" aria-labelledby="activity-heading">
-      <h2 id="activity-heading" tabIndex={-1}>Actual activity</h2>
+      <h2 ref={activityHeading} id="activity-heading" tabIndex={-1}>Actual activity</h2>
         <form onSubmit={save}>
           <fieldset className="budget-fields" aria-label={editing ? "Edit activity entry" : "New activity entry"}
             disabled={action.pending}>

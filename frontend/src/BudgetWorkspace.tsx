@@ -1,7 +1,7 @@
 import { type FormEvent, type RefObject, useEffect, useState } from "react";
 import { ApiError } from "./api";
 import BillCalendar from "./BillCalendar";
-import { type Budget, createBudget, listBudgets, loadSampleMonth, type Plan, savePlan } from "./budget-api";
+import { type Bill, type Budget, createBudget, listBudgets, loadSampleMonth, type Plan, savePlan } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
 import "./budgets.css";
 import MonthContent from "./MonthContent";
@@ -34,9 +34,10 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
   const [yearFilter, setYearFilter] = useState("");
   const [month, setMonth] = useState(() => localDay().slice(0, 7));
   const [copyPrevious, setCopyPrevious] = useState(false);
+  const [payment, setPayment] = useState<{ budgetId: number; bill: Bill } | null>(null);
   const [preview, setPreview] = useState(false);
   const [draft, setDraft] = useState<{ month: string; plan: Plan } | null>(null);
-  const { route, navigate } = useBudgetRoute(guard, leave, () => { setDraft(null); setPreview(false); });
+  const { route, navigate } = useBudgetRoute(guard, leave, () => { setDraft(null); setPreview(false); setPayment(null); });
   const years = [...new Set(budgets.map(item => item.month.slice(0, 4)))].sort((first, second) => second.localeCompare(first));
   const visibleBudgets = years.includes(yearFilter) ? budgets.filter(item => item.month.startsWith(yearFilter)) : budgets;
   const existing = budgets.find(item => item.month === month);
@@ -124,8 +125,9 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
             <button type="button" className="secondary-button" onClick={() => leave(() => navigate(selected.month, true))}>Calendar</button>
           </>}
         </nav>
-        {route.calendar ? <BillCalendar budget={selected} expireSession={expireSession} /> : <>
-        <MonthContent budget={selected} expireSession={expireSession}>
+        {route.calendar ? <BillCalendar budget={selected} expireSession={expireSession}
+          onRecord={bill => { navigate(selected.month); setPayment({ budgetId: selected.id, bill }); }} /> : <>
+        <MonthContent budget={selected} expireSession={expireSession} payment={payment?.budgetId === selected.id ? payment.bill : undefined}>
           <PlanEditor guard={guard} budget={selected} persist={plan => savePlan(selected.id, plan)} onSaved={storeBudget} expireSession={expireSession} />
         </MonthContent>
         <MonthDeletion key={selected.id} budget={selected} expireSession={expireSession} onDeleted={() => {

@@ -111,6 +111,10 @@ export async function addBill(budgetId: number, bill: NewBill): Promise<Bill[]> 
   return budgetRequest(`${budgetPath(budgetId)}/bills`, jsonBody("POST", bill));
 }
 
+export async function editBill(budgetId: number, billId: string, fields: Omit<NewBill, "id">): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills/${recordIdSegment(billId)}`, jsonBody("PUT", fields));
+}
+
 export async function setBillPaid(budgetId: number, billId: string, paid: boolean): Promise<Bill[]> {
   return budgetRequest(`${budgetPath(budgetId)}/bills/${recordIdSegment(billId)}/status`, jsonBody("PUT", { paid }));
 }

@@ -47,3 +47,18 @@ class BillCalendarTest(BudgetTestCase):
         self.assertEqual((await owner.post("/api/budgets/sample", json=payload)).status_code, 409)
         self.assertEqual(len((await owner.get(base + "/bills")).json()), 2)
         self.assertEqual((await owner.get(base + "/activity")).json()["outflow_cents"], preview.json()["activity"]["outflow_cents"])
+
+    async def test_edits_only_the_owners_bill_and_keeps_payment_status(self) -> None:
+        owner, stranger = await self.account(), await self.account()
+        budget = await self.new_budget(owner)
+        path = f"/api/budgets/{budget['id']}/bills"
+        fields = {"name": "Rent", "due_date": "2026-11-01", "amount_cents": 3000}
+        record = str(uuid4())
+        await owner.post(path, json={"id": record, **fields})
+        await owner.put(f"{path}/{record}/status", json={"paid": True})
+        endpoint = f"{path}/{record}"
+        self.assertEqual((await stranger.put(endpoint, json=fields)).status_code, 404)
+        self.assertEqual((await owner.put(endpoint, json={**fields, "due_date": "2026-12-01"})).status_code, 400)
+        result = await owner.put(endpoint, json={**fields, "name": "Updated"})
+        self.assertEqual(result.json()[0]["name"], "Updated")
+        self.assertTrue(result.json()[0]["paid"])
