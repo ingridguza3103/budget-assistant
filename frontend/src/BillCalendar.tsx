@@ -1,8 +1,8 @@
 import { type FormEvent, useCallback, useRef, useState } from "react";
-import { addBill, type Bill, type Budget, deleteBill, editBill, listBills, setBillPaid } from "./budget-api";
-import { amountInput, shortDay, daysInMonth, firstEntryDay, lastDay, localDay, money, parseCents } from "./budget-format";
-import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import "./bill-calendar.css";
+import { addBill, type Bill, type Budget, deleteBill, editBill, listBills, setBillPaid } from "./budget-api";
+import { amountInput, daysInMonth, firstEntryDay, lastDay, localDay, money, parseCents, shortDay } from "./budget-format";
+import { useBudgetAction, useBudgetData } from "./use-budget-action";
 
 const calendarDay = new Intl.DateTimeFormat("en-IE", { dateStyle: "long", timeZone: "UTC" });
 
@@ -175,7 +175,7 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
           <label className="budget-field">Bill amount<input inputMode="decimal" required maxLength={9} value={amount}
             onChange={e => { pendingId.current = null; setAmount(e.target.value); }} /></label>
         </fieldset>
-        <div className="budget-actions"><button className="primary-button budget-primary" disabled={action.pending}>
+        <div className="budget-actions"><button type="submit" className="primary-button budget-primary" disabled={action.pending}>
           {action.pending && !target ? "Saving…" : editing ? "Save bill" : "Add bill"}</button>
           {editing && <button type="button" className="secondary-button" onClick={() => edit(null)}>Cancel edit</button>}
         </div>
