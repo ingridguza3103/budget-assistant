@@ -12,7 +12,7 @@ export default function MonthDeletion({ budget, expireSession, onDeleted }: {
   return <section className="month-deletion" aria-label="Delete month">
     {confirming ? <>
       <p>Delete {name} and all its transactions and scheduled bills? This is permanent.</p>
-      <button type="button" className="secondary-button" autoFocus disabled={action.pending}
+      <button type="button" className="secondary-button" disabled={action.pending}
         onClick={() => setConfirming(false)}>Cancel deletion</button>
       <button type="button" className="secondary-button danger" disabled={action.pending}
         onClick={() => void action.run(async () => { await deleteBudget(budget.id); onDeleted(); })}>
