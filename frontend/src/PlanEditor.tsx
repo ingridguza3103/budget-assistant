@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { type Budget, categories, type Category, type Plan, savePlan } from "./budget-api";
+import { type Budget, categories, type Category, type Plan } from "./budget-api";
 import { amountInput, categoryNames, money, parseCents } from "./budget-format";
 import { useBudgetAction } from "./use-budget-action";
 
@@ -90,12 +90,13 @@ export function ScenarioPanel({ budget }: { budget: Budget }) {
 }
 
 type Props = {
-  budget: Budget;
+  budget: Plan;
+  persist: (plan: Plan) => Promise<Budget>;
   onSaved: (changed: Budget) => void;
   expireSession: () => void;
 };
 
-export default function PlanEditor({ budget, onSaved, expireSession }: Props) {
+export default function PlanEditor({ budget, onSaved, expireSession, persist }: Props) {
   const [draft, setDraft] = useState(() => planDraft(budget));
   const [saved, setSaved] = useState(false);
   const action = useBudgetAction(expireSession);
@@ -104,7 +105,7 @@ export default function PlanEditor({ budget, onSaved, expireSession }: Props) {
     event.preventDefault();
     setSaved(false);
     void action.run(async () => {
-      const updated = await savePlan(budget.id, parsePlan(draft));
+      const updated = await persist(parsePlan(draft));
       onSaved(updated);
       setDraft(planDraft(updated));
       setSaved(true);
@@ -116,7 +117,7 @@ export default function PlanEditor({ budget, onSaved, expireSession }: Props) {
       <div className="budget-row">
         <h2 id="plan-heading">Monthly plan</h2>
         <span className="budget-balance">
-          Planned remainder <strong>{money(budget.planned_remainder_cents)}</strong>
+          Planned remainder <strong>{money(scenarioRemainder(planDraft(budget)) ?? 0)}</strong>
         </span>
       </div>
       <form onSubmit={submit}>

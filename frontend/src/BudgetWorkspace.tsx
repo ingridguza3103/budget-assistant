@@ -1,11 +1,21 @@
 import { type FormEvent, useState } from "react";
+import { ApiError } from "./api";
 import ActivityPanel from "./ActivityPanel";
+import MonthPicker, { validMonth } from "./MonthPicker";
 import BillCalendar from "./BillCalendar";
-import { type Budget, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
+import { type Budget, type Plan, savePlan, createBudget, listBudgets, loadSampleMonth } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
 import PlanEditor, { ScenarioPanel } from "./PlanEditor";
 import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import "./budgets.css";
+
+const emptyPlan: Plan = { planned_income_cents: 0, allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 } };
+
+function precedingMonth(month: string) {
+  const date = new Date(month + "-01T00:00:00Z");
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  return date.toISOString().slice(0, 7);
+}
 
 export default function BudgetWorkspace({ expireSession }: { expireSession: () => void }) {
   const load = useBudgetData(listBudgets, expireSession);
@@ -13,6 +23,10 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [month, setMonth] = useState(() => localDay().slice(0, 7));
   const [copyPrevious, setCopyPrevious] = useState(false);
+  const [draft, setDraft] = useState<{ month: string; plan: Plan } | null>(null);
+  const existing = budgets.find(item => item.month === month);
+  const sourceMonth = validMonth(month) ? precedingMonth(month) : "";
+  const previous = budgets.find(item => item.month === sourceMonth);
   const action = useBudgetAction(expireSession);
   const selected = budgets.find((budget) => budget.id === selectedId);
 
@@ -23,12 +37,18 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
 
   function addMonth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void action.run(async () => {
-      const created = await createBudget(month, copyPrevious);
-      storeBudget(created);
-      setSelectedId(created.id);
-      setCopyPrevious(false);
-    });
+    if (!validMonth(month)) return;
+    if (existing) setSelectedId(existing.id);
+    else setDraft({ month, plan: copyPrevious && previous ? previous : emptyPlan });
+  }
+
+  async function saveNewMonth(plan: Plan) {
+    try {
+      return await createBudget(month, plan);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) load.retry();
+      throw error;
+    }
   }
 
   function addSample() {
@@ -40,12 +60,28 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
     });
   }
 
+  if (draft) return <article>
+    <button className="secondary-button" type="button" onClick={() => setDraft(null)}>All budgets</button>
+    <h1 className="budget-month-heading">{monthName(draft.month)}</h1>
+    <p className="budget-status">Save your plan to start recording activity and bills.</p>
+    <PlanEditor budget={draft.plan} expireSession={expireSession} persist={saveNewMonth} onSaved={created => {
+      storeBudget(created);
+      setSelectedId(created.id);
+      setDraft(null);
+      setCopyPrevious(false);
+    }} />
+    {existing && <button type="button" className="secondary-button" onClick={() => {
+      setDraft(null);
+      setSelectedId(existing.id);
+    }}>Open the saved budget</button>}
+  </article>;
+
   if (selected) {
     return (
       <article key={selected.id}>
         <button className="secondary-button" type="button" onClick={() => setSelectedId(null)}>All budgets</button>
         <h1 className="budget-month-heading">{monthName(selected.month)}</h1>
-        <PlanEditor budget={selected} onSaved={storeBudget} expireSession={expireSession} />
+        <PlanEditor budget={selected} persist={plan => savePlan(selected.id, plan)} onSaved={storeBudget} expireSession={expireSession} />
         <ActivityPanel budget={selected} expireSession={expireSession} />
         <ScenarioPanel budget={selected} />
         <BillCalendar budget={selected} expireSession={expireSession} />
@@ -64,20 +100,18 @@ export default function BudgetWorkspace({ expireSession }: { expireSession: () =
       ) : (
         <>
           <form className="budget-panel budget-fields budget-create" onSubmit={addMonth}>
-            <label className="budget-field">Month
-              <input type="month" min="1900-01" max="9999-12" value={month} required
-                onChange={(event) => setMonth(event.target.value)} />
-            </label>
+            <MonthPicker value={month} onChange={value => { setMonth(value); setCopyPrevious(false); }} />
             <label className="budget-check">
-              <input type="checkbox" checked={copyPrevious} onChange={(event) => setCopyPrevious(event.target.checked)} />
-              Copy last month’s plan
+              <input type="checkbox" disabled={!previous || !!existing} checked={!!previous && !existing && copyPrevious} onChange={(event) => setCopyPrevious(event.target.checked)} />
+              {previous ? "Copy " + monthName(previous.month) + "’s plan" : "Copy previous plan"}
             </label>
-            <div className="budget-actions">
-              <button className="primary-button budget-primary" type="submit" disabled={action.pending}>Create month</button>
-              <button className="secondary-button" type="button" disabled={action.pending || !month} onClick={addSample}>
+              <button className="primary-button budget-primary" type="submit" disabled={action.pending || !validMonth(month)}>
+                {existing ? "Open budget for " + monthName(month) : (budgets.length ? "Start a month" : "Create my first budget")}
+              </button>
+              <button className="secondary-button sample-action" type="button" disabled={action.pending || !validMonth(month)} onClick={addSample}>
                 Load sample month
               </button>
-            </div>
+            {!previous && sourceMonth && !existing && <small className="copy-hint">No plan saved for {monthName(sourceMonth)}.</small>}
             {action.error && <p className="form-error" role="alert">{action.error}</p>}
           </form>
           {budgets.length === 0 ? <p className="budget-status">No budgets yet.</p> : (
