@@ -60,7 +60,7 @@ export default function ActivityPanel({ budget, expireSession, activity, setActi
 
   return (
     <section className="budget-panel" aria-labelledby="activity-heading">
-      <h2 id="activity-heading">Actual activity</h2>
+      <h2 id="activity-heading" tabIndex={-1}>Actual activity</h2>
         <form onSubmit={save}>
           <fieldset className="budget-fields" aria-label={editing ? "Edit activity entry" : "New activity entry"}
             disabled={action.pending}>

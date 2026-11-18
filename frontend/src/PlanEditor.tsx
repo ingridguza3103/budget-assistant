@@ -55,7 +55,7 @@ function ScenarioPanel({ budget, onUse }: { budget: Plan; onUse: (next: Draft) =
   const left = result?.plan ? remainder(result.plan) : null;
   const delta = left === null ? 0 : left - remainder(budget);
   return <section className="budget-panel" aria-labelledby="scenario-heading">
-    <div className="budget-row"><h2 id="scenario-heading">What if?</h2>
+    <div className="budget-row"><h2 id="scenario-heading" tabIndex={-1}>What if?</h2>
       <button className="secondary-button" type="button" aria-expanded={!!draft}
         onClick={() => setDraft(draft ? null : toDraft(budget))}>{draft ? "Discard preview" : "Preview a change"}</button></div>
     {draft && result && <>

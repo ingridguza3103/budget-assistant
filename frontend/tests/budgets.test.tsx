@@ -43,6 +43,7 @@ test("chooses a year directly and rejects an incomplete year", async () => {
 });
 
 beforeEach(() => {
+  history.replaceState(null, "", "/");
   vi.mocked(listBills).mockResolvedValue([]);
   vi.mocked(readActivity).mockResolvedValue({
     entries: [], income_cents: 0, outflow_cents: 0, remainder_cents: 0,
@@ -190,4 +191,23 @@ test("updates the draft remainder and protects leaving until the user decides", 
   await user.click(screen.getByRole("button", { name: "All budgets" }));
   await user.click(screen.getByRole("button", { name: "Discard and leave" }));
   expect(savePlan).not.toHaveBeenCalled();
+});
+
+test("opens a bookmarked calendar, switches between saved months and survives remount", async () => {
+  const budgets = [november, { ...november, id: 2, month: "2025-12" }];
+  vi.mocked(listBudgets).mockResolvedValue(budgets);
+  history.replaceState(null, "", "/?month=2026-11&view=calendar");
+  const user = userEvent.setup();
+  const mounted = render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await screen.findByRole("heading", { name: "Bill calendar" });
+  expect(screen.queryByRole("heading", { name: "Monthly plan" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Previous month" }));
+  expect(location.search).toBe("?month=2025-12&view=calendar");
+  mounted.unmount();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await screen.findByRole("heading", { name: "December 2025" });
+  await user.click(screen.getByRole("button", { name: "Back to budget" }));
+  await user.click(screen.getByRole("button", { name: "All budgets" }));
+  await user.selectOptions(screen.getByLabelText("Filter by year"), "2025");
+  expect(screen.queryByRole("button", { name: "Open November 2026" })).toBeNull();
 });
