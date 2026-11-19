@@ -14,8 +14,8 @@ from .models import MAX_CENTS, MonthlyBudget, User
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 CurrentUser = Annotated[User, Depends(get_current_user)]
-Category = Literal["bills", "everyday", "savings", "debt"]
-CATEGORIES: tuple[Category, ...] = ("bills", "everyday", "savings", "debt")
+Category = Literal["bills", "everyday", "savings", "debt", "other"]
+CATEGORIES: tuple[Category, ...] = ("bills", "everyday", "savings", "debt", "other")
 Month = Annotated[str, Field(pattern=r"^(19[0-9]{2}|[2-9][0-9]{3})-(0[1-9]|1[0-2])$")]
 Cents = Annotated[int, Field(strict=True, ge=0, le=MAX_CENTS)]
 
@@ -27,6 +27,7 @@ class Allocations(BaseModel):
     everyday: Cents
     savings: Cents
     debt: Cents
+    other: Cents = 0
 
 
 class Plan(BaseModel):
@@ -71,6 +72,7 @@ def budget_view(budget: MonthlyBudget) -> BudgetView:
             everyday=budget.everyday_cents,
             savings=budget.savings_cents,
             debt=budget.debt_cents,
+            other=budget.other_cents,
         ),
     )
 
@@ -137,7 +139,10 @@ def read_budget(budget: OwnedBudget) -> BudgetView:
 
 @router.put("/{budget_id}")
 def update_plan(payload: Plan, budget: OwnedBudget, db: Database) -> BudgetView:
-    for column, cents in payload.column_values().items():
+    columns = payload.column_values()
+    if "other" not in payload.allocations.model_fields_set:
+        columns.pop("other_cents")
+    for column, cents in columns.items():
         setattr(budget, column, cents)
     db.commit()
     return budget_view(budget)

@@ -10,7 +10,8 @@ export type SaveGuard = RefObject<(() => Promise<boolean>) | null>;
 
 function toDraft(plan: Plan): Draft {
   return { income: amountInput(plan.planned_income_cents), bills: amountInput(plan.allocations.bills),
-    everyday: amountInput(plan.allocations.everyday), savings: amountInput(plan.allocations.savings), debt: amountInput(plan.allocations.debt) };
+    everyday: amountInput(plan.allocations.everyday), savings: amountInput(plan.allocations.savings),
+    debt: amountInput(plan.allocations.debt), other: amountInput(plan.allocations.other) };
 }
 
 function readDraft(draft: Draft) {

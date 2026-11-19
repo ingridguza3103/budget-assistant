@@ -14,12 +14,12 @@ vi.mock("../src/budget-api", async (original) => ({
 
 const budget = {
   id: 1, month: "2026-11", planned_income_cents: 250_000,
-  allocations: { bills: 100_000, everyday: 30_000, savings: 20_000, debt: 5_000 },
+  allocations: { bills: 100_000, everyday: 30_000, savings: 20_000, debt: 5_000, other: 0 },
   planned_remainder_cents: 95_000,
 };
 const empty: Activity = {
   entries: [], income_cents: 250_000, outflow_cents: 0, remainder_cents: 250_000,
-  spending: { bills: 0, everyday: 0, savings: 0, debt: 0 },
+  spending: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 },
 };
 
 afterEach(() => {
