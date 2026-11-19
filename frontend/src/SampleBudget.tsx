@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import Dashboard from "./Dashboard";
 import { previewSampleMonth } from "./budget-api";
-import { categoryNames, money, monthName } from "./budget-format";
+import { categoryNames, shortDay, money, monthName } from "./budget-format";
 import { useBudgetData } from "./use-budget-action";
 
 type Props = {
@@ -21,9 +21,9 @@ export default function SampleBudget({ month, occupied, expireSession, pending, 
       <Dashboard budget={preview.data.plan} activity={preview.data.activity} />
       <section className="budget-panel"><h2>Sample activity</h2><ul className="budget-entries">
         {preview.data.activity.entries.map(entry => <li key={entry.id}><span>{entry.description || categoryNames[entry.category]}</span>
-          <span>{entry.entry_date}</span><b>{money(entry.amount_cents)}</b></li>)}</ul></section>
+          <span>{shortDay(entry.entry_date)}</span><b>{entry.category === "income" ? "+" : "−"}{money(entry.amount_cents)}</b></li>)}</ul></section>
       <section className="budget-panel"><h2>Sample calendar</h2><ul className="budget-entries">
-        {preview.data.bills.map(bill => <li key={bill.id}><span>{bill.name}</span><span>{bill.due_date}</span>
+        {preview.data.bills.map(bill => <li key={bill.id}><span>{bill.name}</span><span>{shortDay(bill.due_date)}</span>
           <span>{bill.paid ? "Paid" : "Unpaid"}</span><b>{money(bill.amount_cents)}</b></li>)}</ul></section>
       {occupied ? <p className="budget-status">You already have a budget here. Choose an unused month to save a sample.</p> :
         <button type="button" disabled={pending} className="primary-button" onClick={onSave}>

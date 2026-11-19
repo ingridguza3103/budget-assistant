@@ -48,20 +48,31 @@ test("adds an entry, flags an overage, edits the amount and deletes the entry", 
   fireEvent.change(screen.getByLabelText("Description"), { target: { value: "Rent" } });
   await user.click(screen.getByRole("button", { name: "Add entry" }));
   expect(await screen.findByText("€300.00 over budget")).toBeTruthy();
+  expect(screen.getByLabelText<HTMLSelectElement>("Category").value).toBe("bills");
+  expect(screen.getByLabelText<HTMLInputElement>("Date").value).toBe("2026-11-07");
+  expect(screen.getByLabelText<HTMLInputElement>("Amount").value).toBe("");
+  await user.type(screen.getByLabelText("Search description"), "other");
+  expect(screen.getByText("No transactions match these filters.")).toBeTruthy();
+  expect(screen.getByText("€300.00 over budget")).toBeTruthy();
+  await user.clear(screen.getByLabelText("Search description"));
   expect(addEntry).toHaveBeenCalledWith(1, {
     id: expect.any(String), entry_date: "2026-11-07", category: "bills", amount_cents: 130_000, description: "Rent",
   });
 
-  await user.click(screen.getByRole("button", { name: "Edit", exact: true }));
+  await user.click(screen.getByRole("button", { name: "Edit Rent", exact: true }));
+  expect(document.activeElement).toBe(screen.getByLabelText("Date"));
   expect((screen.getByLabelText("Amount") as HTMLInputElement).value).toBe("1300.00");
   await user.click(screen.getByRole("button", { name: "Cancel edit" }));
-  await user.click(screen.getByRole("button", { name: "Edit", exact: true }));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Rent" }));
+  await user.click(screen.getByRole("button", { name: "Edit Rent", exact: true }));
   fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "900" } });
   await user.click(screen.getByRole("button", { name: "Save entry" }));
   expect(editEntry).toHaveBeenCalled();
   expect(screen.queryByText("€300.00 over budget")).toBeNull();
 
-  await user.click(screen.getByRole("button", { name: "Delete", exact: true }));
+  await user.click(screen.getByRole("button", { name: "Delete Rent", exact: true }));
+  expect(deleteEntry).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
   expect(await screen.findByText("No activity recorded.")).toBeTruthy();
 });
 

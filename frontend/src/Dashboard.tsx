@@ -58,6 +58,7 @@ export default function Dashboard({ budget, activity, loading = false, error = "
   const gap = (activity?.income_cents ?? 0) - budget.planned_income_cents;
   return <section className="budget-panel" aria-labelledby="overview-heading">
     <h2 id="overview-heading">Monthly overview</h2>
+    <p className="budget-status">Whole month</p>
     <dl className="month-figures">
       <div><dt>Left to allocate</dt><dd>{money(budget.planned_income_cents - total)}</dd></div>
       <div><dt>Actual remainder</dt><dd>{activity ? money(activity.remainder_cents) : (loading ? "Loading…" : "Unavailable")}</dd></div>
