@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .auth import get_current_user
 from .database import Database
+from .recurrence import lock_owner, schedule_for_budget
 from .models import MAX_CENTS, MonthlyBudget, User
 
 router = APIRouter(prefix="/api/budgets", tags=["budgets"])
@@ -87,6 +88,7 @@ OwnedBudget = Annotated[MonthlyBudget, Depends(owned_budget)]
 
 
 def insert_budget(db: Session, user_id: int, month: date, plan: Plan) -> MonthlyBudget:
+    lock_owner(db, user_id)
     statement = (
         insert(MonthlyBudget)
         .values(user_id=user_id, month=month, **plan.column_values())
@@ -96,6 +98,7 @@ def insert_budget(db: Session, user_id: int, month: date, plan: Plan) -> Monthly
     budget = db.scalar(statement)
     if budget is None:
         raise HTTPException(status_code=409, detail="You already have a budget for that month.")
+    schedule_for_budget(db, budget)
     return budget
 
 
@@ -142,6 +145,7 @@ def update_plan(payload: Plan, budget: OwnedBudget, db: Database) -> BudgetView:
 
 @router.delete("/{budget_id}", status_code=204)
 def delete_budget(budget: OwnedBudget, db: Database) -> Response:
+    lock_owner(db, budget.user_id)
     db.execute(delete(MonthlyBudget).where(MonthlyBudget.id == budget.id, MonthlyBudget.user_id == budget.user_id))
     db.commit()
     return Response(status_code=204)

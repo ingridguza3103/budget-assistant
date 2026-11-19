@@ -80,14 +80,33 @@ class BudgetEntry(Base):
     amount_cents: Mapped[int]
 
 
+class BillSeries(Base):
+    __tablename__ = "bill_series"
+    __table_args__ = (
+        CheckConstraint("due_day BETWEEN 1 AND 31", name="ck_series_day"),
+        CheckConstraint(f"amount_cents BETWEEN 1 AND {MAX_CENTS}", name="ck_series_amount"),
+        CheckConstraint("end_month IS NULL OR end_month >= start_month", name="ck_series_range"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    start_month: Mapped[date] = mapped_column(Date)
+    end_month: Mapped[date | None] = mapped_column(Date)
+    due_day: Mapped[int]
+    name: Mapped[str] = mapped_column(String(80))
+    amount_cents: Mapped[int]
+
+
 class ScheduledBill(Base):
     __tablename__ = "scheduled_bills"
     __table_args__ = (
         CheckConstraint(f"amount_cents BETWEEN 1 AND {MAX_CENTS}", name="ck_bills_amount"),
+        UniqueConstraint("series_id", "budget_id", name="uq_series_budget"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
     budget_id: Mapped[int] = mapped_column(ForeignKey("budgets.id", ondelete="CASCADE"), index=True)
+    series_id: Mapped[UUID | None] = mapped_column(ForeignKey("bill_series.id", name="fk_scheduled_series", ondelete="SET NULL"))
     due_date: Mapped[date] = mapped_column(Date)
     name: Mapped[str] = mapped_column(String(80))
     amount_cents: Mapped[int]
