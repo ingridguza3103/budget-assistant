@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useRef, useState } from "react";
 import "./bill-calendar.css";
-import { addBill, type Bill, type Budget, deleteBill, editBill, listBills, setBillPaid } from "./budget-api";
-import { amountInput, daysInMonth, firstEntryDay, lastDay, localDay, money, parseCents, shortDay } from "./budget-format";
+import { addBill, addMonthlyBill, type Bill, type Budget, deleteBill, editBill, listBills, setBillPaid, stopMonthlyBill } from "./budget-api";
+import { amountInput, daysInMonth, firstEntryDay, lastDay, localDay, money, monthName, parseCents, shortDay } from "./budget-format";
 import { useBudgetAction, useBudgetData } from "./use-budget-action";
 
 const calendarDay = new Intl.DateTimeFormat("en-IE", { dateStyle: "long", timeZone: "UTC" });
@@ -70,6 +70,8 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
   const [filter, setFilter] = useState<Filter>("All");
   const [editing, setEditing] = useState<Bill | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [stopId, setStopId] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [dueDate, setDueDate] = useState(() => firstEntryDay(budget.month));
@@ -86,6 +88,7 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
 
   function updateDueDate(value: string) { pendingId.current = null; setDueDate(value); }
   function edit(bill: Bill | null) {
+    setRepeat(false);
     setEditing(bill);
     setName(bill?.name ?? "");
     setAmount(bill ? amountInput(bill.amount_cents) : "");
@@ -100,11 +103,14 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
     void action.run(async () => {
       const fields = { name: name.trim(), due_date: dueDate, amount_cents: parseCents(amount) };
       if (!fields.name || fields.amount_cents <= 0) throw new Error("Enter a name and a positive amount.");
-      if (editing) setData(await editBill(budget.id, editing.id, fields));
-      else {
+      if (editing && !repeat) {
+        setData(await editBill(budget.id, editing.id, fields));
+      } else {
         pendingId.current ??= crypto.randomUUID();
-        setData(await addBill(budget.id, { ...fields, id: pendingId.current }));
+        const bill = { ...fields, id: pendingId.current };
+        setData(repeat ? await addMonthlyBill(budget.id, bill, editing?.id) : await addBill(budget.id, bill));
       }
+      setRepeat(false);
       if (selectedDate) setSelectedDate(dueDate);
       setNotice(editing ? "Bill updated." : "Bill scheduled.");
       setEditing(null); setName(""); setAmount(""); pendingId.current = null;
@@ -114,7 +120,7 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
     setTarget(id); setNotice("");
     void action.run(async () => {
       const result = await operation();
-      setData(result); setConfirmId(null);
+      setData(result); setConfirmId(null); setStopId(null);
       if (editing?.id === id && !result.some(bill => bill.id === id)) edit(null);
       setNotice(message);
     });
@@ -143,7 +149,9 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
       </div>
       <p className="budget-status">Mark paid updates the calendar. Record a payment in Activity to include it in your actual spending.</p>
       {visible.length ? <ul className="budget-entries">{visible.map(bill => <li key={bill.id}>
-        <div><strong>{bill.name}</strong><small>{shortDay(bill.due_date)} · {billStatus(bill, today)}</small></div>
+        <div><strong>{bill.name}</strong><small>{shortDay(bill.due_date)} · {billStatus(bill, today)}</small>
+          {bill.series && <small>Monthly · day {bill.series.due_day} · from {monthName(bill.series.start_month.slice(0, 7))}
+            {bill.series.end_month && " through " + monthName(bill.series.end_month.slice(0, 7))}</small>}</div>
         <b>{money(bill.amount_cents)}</b>
         <div className="budget-actions">
           <button type="button" className="secondary-button" disabled={action.pending} aria-label={"Edit " + bill.name}
@@ -152,14 +160,25 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
             aria-label={(bill.paid ? "Mark unpaid " : "Mark paid ") + bill.name}
             onClick={() => rowAction(bill.id, () => setBillPaid(budget.id, bill.id, !bill.paid), bill.name + (bill.paid ? " marked unpaid." : " marked paid."))}>
             {bill.paid ? "Mark unpaid" : "Mark paid"}</button>
+          {bill.series && (!bill.series.end_month || bill.series.end_month.slice(0, 7) > budget.month) &&
+            <button type="button" className="secondary-button" disabled={action.pending} onClick={() => {
+              setStopId(bill.id); setConfirmId(null);
+            }}>Stop repeating after this month</button>}
           {onRecord && <button type="button" className="secondary-button" onClick={() => onRecord(bill)}>Record payment</button>}
           <button type="button" className="secondary-button danger" disabled={action.pending} aria-label={"Remove " + bill.name}
-            onClick={() => setConfirmId(bill.id)}>Remove bill</button>
+            onClick={() => { setConfirmId(bill.id); setStopId(null); }}>Remove bill</button>
         </div>
         {confirmId === bill.id && <div className="row-feedback">Remove {bill.name} from this month?
           <button type="button" disabled={action.pending} onClick={() => setConfirmId(null)}>Cancel</button>
           <button type="button" disabled={action.pending} onClick={() =>
             rowAction(bill.id, () => deleteBill(budget.id, bill.id), bill.name + " removed.")}>Confirm removal</button></div>}
+        {stopId === bill.id && bill.series && <div className="row-feedback">
+          Stop {bill.name} after {monthName(budget.month)}? Later unpaid occurrences will be removed. Paid bills stay in your history.
+          <button type="button" disabled={action.pending} onClick={() => setStopId(null)}>Keep repeating</button>
+          <button type="button" disabled={action.pending} onClick={() => {
+            const seriesId = bill.series?.id;
+            if (seriesId) rowAction(bill.id, () => stopMonthlyBill(budget.id, seriesId), "Monthly repeat stopped.");
+          }}>Confirm stop</button></div>}
         {target === bill.id && action.error && <p role="alert" className="form-error">{action.error}</p>}
         {target === bill.id && notice && <p role="status">{notice}</p>}
       </li>)}</ul> : <p className="budget-status">{filter !== "All" ? "No bills match this filter." :
@@ -174,7 +193,13 @@ export default function BillCalendar({ budget, expireSession, onRecord }: {
             value={dueDate} onChange={e => updateDueDate(e.target.value)} /></label>
           <label className="budget-field">Bill amount<input inputMode="decimal" required maxLength={9} value={amount}
             onChange={e => { pendingId.current = null; setAmount(e.target.value); }} /></label>
+          {!editing?.series && <label className="budget-check"><input type="checkbox" checked={repeat} onChange={e => {
+            pendingId.current = null; setRepeat(e.target.checked);
+          }} />Repeat monthly</label>}
         </fieldset>
+        {repeat && dueDate && <p className="budget-status">Starts in {monthName(budget.month)}, on day {Number(dueDate.slice(-2))}.
+          Shorter months use their last day.</p>}
+        {editing?.series && <p className="budget-status">You’re editing this occurrence only.</p>}
         <div className="budget-actions"><button type="submit" className="primary-button budget-primary" disabled={action.pending}>
           {action.pending && !target ? "Saving…" : editing ? "Save bill" : "Add bill"}</button>
           {editing && <button type="button" className="secondary-button" onClick={() => edit(null)}>Cancel edit</button>}

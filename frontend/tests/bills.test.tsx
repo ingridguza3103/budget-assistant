@@ -2,10 +2,10 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import BillCalendar from "../src/BillCalendar";
-import { addBill, deleteBill, editBill, listBills, setBillPaid } from "../src/budget-api";
+import { addBill, addMonthlyBill, stopMonthlyBill, deleteBill, editBill, listBills, setBillPaid } from "../src/budget-api";
 
 vi.mock("../src/budget-api", () => ({
-  editBill: vi.fn(), listBills: vi.fn(), addBill: vi.fn(), setBillPaid: vi.fn(), deleteBill: vi.fn(),
+  addMonthlyBill: vi.fn(), stopMonthlyBill: vi.fn(), editBill: vi.fn(), listBills: vi.fn(), addBill: vi.fn(), setBillPaid: vi.fn(), deleteBill: vi.fn(),
 }));
 
 const budget = {
@@ -75,4 +75,23 @@ test("edits the selected occurrence and filters paid bills", async () => {
   expect(editBill).toHaveBeenCalledWith(1, "a", { name: "Water", due_date: "2026-11-01", amount_cents: 3000 });
   await user.selectOptions(screen.getByLabelText("Bill status"), "Paid");
   expect(screen.getByText("No bills match this filter.")).toBeTruthy();
+});
+
+test("promotes a one-off bill and requires confirmation before stopping its series", async () => {
+  const bill = { id: "one", name: "Gym", due_date: "2026-11-05", amount_cents: 2500, paid: true };
+  const series = { id: "series", start_month: "2026-11-01", due_day: 5 };
+  vi.mocked(listBills).mockResolvedValue([bill]);
+  vi.mocked(addMonthlyBill).mockResolvedValue([{ ...bill, series }]);
+  vi.mocked(stopMonthlyBill).mockResolvedValue([{ ...bill, series: { ...series, end_month: "2026-11-01" } }]);
+  render(<BillCalendar budget={budget} expireSession={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Edit Gym" }));
+  await user.click(screen.getByLabelText("Repeat monthly"));
+  await user.click(screen.getByRole("button", { name: "Save bill" }));
+  expect(addMonthlyBill).toHaveBeenCalledWith(1, expect.objectContaining({ name: "Gym", due_date: "2026-11-05" }), "one");
+  await user.click(screen.getByRole("button", { name: "Stop repeating after this month" }));
+  expect(stopMonthlyBill).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Confirm stop" }));
+  expect(stopMonthlyBill).toHaveBeenCalledWith(1, "series");
+  expect(await screen.findByText(/through November 2026/)).toBeTruthy();
 });
