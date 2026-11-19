@@ -1,13 +1,14 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import BudgetWorkspace from "../src/BudgetWorkspace";
-import { type Budget, deleteBudget, createBudget, listBills, listBudgets, previewSampleMonth, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
+import { type Budget, addEntry, deleteBudget, createBudget, listBills, listBudgets, previewSampleMonth, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
 
 vi.mock("../src/budget-api", async (original) => ({
   ...await original<typeof import("../src/budget-api")>(),
   listBudgets: vi.fn(),
+  addEntry: vi.fn(),
   deleteBudget: vi.fn(),
   createBudget: vi.fn(),
   loadSampleMonth: vi.fn(),
@@ -210,4 +211,74 @@ test("opens a bookmarked calendar, switches between saved months and survives re
   await user.click(screen.getByRole("button", { name: "All budgets" }));
   await user.selectOptions(screen.getByLabelText("Filter by year"), "2025");
   expect(screen.queryByRole("button", { name: "Open November 2026" })).toBeNull();
+});
+
+test("moves focus between the saved card and month heading, and titles the view", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Open November 2026" }));
+  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "November 2026" }));
+  expect(document.title).toBe("November 2026 · Budget Assistant");
+  await user.click(screen.getByRole("button", { name: "All budgets" }));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Open November 2026" }));
+});
+
+test("browser Back can keep a draft or discard it and restore the original history entry", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await user.click(await screen.findByRole("button", { name: "Open November 2026" }));
+  fireEvent.change(screen.getByLabelText("Savings"), { target: { value: "10" } });
+  act(() => history.back());
+  await user.click(await screen.findByRole("button", { name: "Keep editing" }));
+  expect(location.search).toBe("?month=2026-11");
+  expect(screen.getByLabelText<HTMLInputElement>("Savings").value).toBe("10");
+  act(() => history.back());
+  await user.click(await screen.findByRole("button", { name: "Discard and leave" }));
+  await screen.findByRole("heading", { name: "My Budgets" });
+  expect(location.search).toBe("");
+  act(() => history.forward());
+  await screen.findByRole("heading", { name: "November 2026" });
+  expect(screen.getByLabelText<HTMLInputElement>("Savings").value).toBe("0.00");
+});
+
+test("save and leave creates the new draft once and returns to its saved card", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([]);
+  vi.mocked(createBudget).mockResolvedValue({ ...november, planned_income_cents: 1000, planned_remainder_cents: 1000 });
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await screen.findByLabelText("Year");
+  selectNovember();
+  await user.click(screen.getByRole("button", { name: "Create my first budget" }));
+  fireEvent.change(screen.getByLabelText("Planned income"), { target: { value: "10" } });
+  await user.click(screen.getByRole("button", { name: "All budgets" }));
+  await user.click(screen.getByRole("button", { name: "Save and leave" }));
+  expect(await screen.findByRole("heading", { name: "My Budgets" })).toBeTruthy();
+  expect(createBudget).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("button", { name: "Open November 2026" })).toBeTruthy();
+});
+
+test("opens a scheduled payment in Activity and records it only after Add entry", async () => {
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  vi.mocked(listBills).mockResolvedValue([{ id: "fc4f21b5-bca5-4574-b72a-aa202552e870",
+    due_date: "2026-11-18", name: "Internet service", amount_cents: 4200, paid: false }]);
+  vi.mocked(addEntry).mockImplementation(async (_, entry) => ({
+    entries: [entry], income_cents: 0, outflow_cents: 4200, remainder_cents: -4200,
+    spending: { ...november.allocations, bills: 4200 },
+  }));
+  history.replaceState(null, "", "/?month=2026-11&view=calendar");
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await user.click(await screen.findByRole("button", { name: "Record payment" }));
+  const form = within(await screen.findByRole("region", { name: "Actual activity" }));
+  expect((form.getByLabelText("Date") as HTMLInputElement).value).toBe("2026-11-18");
+  expect((form.getByLabelText("Amount") as HTMLInputElement).value).toBe("42.00");
+  expect((form.getByLabelText("Category") as HTMLSelectElement).value).toBe("bills");
+  expect((form.getByLabelText("Description") as HTMLInputElement).value).toBe("Internet service");
+  expect(document.activeElement).toBe(form.getByRole("heading", { name: "Actual activity" }));
+  expect(addEntry).not.toHaveBeenCalled();
+  await user.click(form.getByRole("button", { name: "Add entry" }));
+  expect(await form.findByText("−€42.00")).toBeTruthy();
+  expect(addEntry).toHaveBeenCalledOnce();
 });

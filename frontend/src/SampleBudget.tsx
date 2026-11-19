@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Dashboard from "./Dashboard";
 import { previewSampleMonth } from "./budget-api";
 import { categoryNames, shortDay, money, monthName } from "./budget-format";
@@ -9,11 +9,13 @@ type Props = {
   pending: boolean; error: string; onSave: () => void; onBack: () => void;
 };
 export default function SampleBudget({ month, occupied, expireSession, pending, error, onSave, onBack }: Props) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, []);
   const load = useCallback((signal: AbortSignal) => previewSampleMonth(month, signal), [month]);
   const preview = useBudgetData(load, expireSession);
   return <article>
     <button type="button" className="secondary-button" disabled={pending} onClick={onBack}>All budgets</button>
-    <h1 className="budget-month-heading">Sample budget · {monthName(month)}</h1>
+    <h1 ref={heading} tabIndex={-1} className="budget-month-heading">Sample budget · {monthName(month)}</h1>
     <p className="budget-status">Explore a fictional month. Save a copy to edit its plan, activity and calendar.</p>
     {preview.loading && <p role="status">Loading sample…</p>}
     {preview.error && <p role="alert">{preview.error} <button type="button" onClick={preview.retry}>Try again</button></p>}

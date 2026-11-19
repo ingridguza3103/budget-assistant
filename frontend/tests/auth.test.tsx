@@ -1,10 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { authenticate, getAccount, logout } from "../src/api";
+import { ApiError, authenticate, getAccount, logout } from "../src/api";
+import { listBudgets } from "../src/budget-api";
 import App from "../src/App";
 
-vi.mock("../src/api", () => ({
+vi.mock("../src/api", async (original) => ({
+  ...await original<typeof import("../src/api")>(),
   authenticate: vi.fn(),
   getAccount: vi.fn(),
   logout: vi.fn(),
@@ -21,6 +23,7 @@ const logoutMock = vi.mocked(logout);
 
 beforeEach(() => {
   vi.resetAllMocks();
+  history.replaceState(null, "", "/");
   getAccountMock.mockResolvedValue(null);
 });
 
@@ -100,4 +103,20 @@ test("retries a failed session check", async () => {
   await user.click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByRole("heading", { name: "Log in", exact: true })).toBeTruthy();
   expect(getAccountMock).toHaveBeenCalledTimes(2);
+});
+
+test("explains expiry and rechecks month ownership after login", async () => {
+  history.replaceState(null, "", "/?month=2026-11&view=calendar");
+  getAccountMock.mockResolvedValue(account);
+  authenticateMock.mockResolvedValue(account);
+  vi.mocked(listBudgets).mockRejectedValueOnce(new ApiError("Log in", 401)).mockResolvedValueOnce([]);
+  const user = userEvent.setup();
+  render(<App />);
+  expect(await screen.findByText("Your session expired. Log in to continue.")).toBeTruthy();
+  expect(screen.getByText("Capitalization matters.")).toBeTruthy();
+  await user.type(screen.getByLabelText("Username"), account.username);
+  await user.type(screen.getByLabelText("Password", { exact: true }), "Demo8abc");
+  await user.click(screen.getByRole("button", { name: "Log in", exact: true }));
+  expect(await screen.findByText(/This month is unavailable in your account/)).toBeTruthy();
+  expect(location.search).toBe("?month=2026-11&view=calendar");
 });
