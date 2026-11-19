@@ -101,7 +101,18 @@ export async function deleteEntry(budgetId: number, entryId: string): Promise<Ac
 }
 
 export type NewBill = { id: string; due_date: string; name: string; amount_cents: number };
-export type Bill = NewBill & { paid: boolean };
+export type BillSeries = { id: string; start_month: string; end_month?: string | null; due_day: number };
+export type Bill = NewBill & { paid: boolean; series?: BillSeries | null };
+
+export async function addMonthlyBill(budgetId: number, bill: NewBill, sourceId?: string): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills/monthly`, jsonBody("POST", {
+    ...bill, source_bill_id: sourceId,
+  }));
+}
+
+export async function stopMonthlyBill(budgetId: number, seriesId: string): Promise<Bill[]> {
+  return budgetRequest(`${budgetPath(budgetId)}/bills/monthly/${recordIdSegment(seriesId)}/stop`, { method: "POST" });
+}
 
 export async function listBills(budgetId: number, signal: AbortSignal): Promise<Bill[]> {
   return budgetRequest(`${budgetPath(budgetId)}/bills`, { signal });
