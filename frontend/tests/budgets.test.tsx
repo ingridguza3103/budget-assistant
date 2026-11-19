@@ -5,6 +5,8 @@ import BudgetWorkspace from "../src/BudgetWorkspace";
 import { type Budget, addEntry, deleteBudget, createBudget, listBills, listBudgets, previewSampleMonth, loadSampleMonth, readActivity, savePlan } from "../src/budget-api";
 import { ApiError } from "../src/api";
 
+vi.mock("../src/ForecastDashboard", () => ({ default: () => null }));
+
 vi.mock("../src/budget-api", async (original) => ({
   ...await original<typeof import("../src/budget-api")>(),
   listBudgets: vi.fn(),
@@ -22,7 +24,7 @@ const november: Budget = {
   id: 1,
   month: "2026-11",
   planned_income_cents: 0,
-  allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 },
+  allocations: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 },
   planned_remainder_cents: 0,
 };
 
@@ -48,7 +50,7 @@ beforeEach(() => {
   vi.mocked(listBills).mockResolvedValue([]);
   vi.mocked(readActivity).mockResolvedValue({
     entries: [], income_cents: 0, outflow_cents: 0, remainder_cents: 0,
-    spending: { bills: 0, everyday: 0, savings: 0, debt: 0 },
+    spending: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 },
   });
 });
 
@@ -281,4 +283,25 @@ test("opens a scheduled payment in Activity and records it only after Add entry"
   await user.click(form.getByRole("button", { name: "Add entry" }));
   expect(await form.findByText("−€42.00")).toBeTruthy();
   expect(addEntry).toHaveBeenCalledOnce();
+});
+
+
+test("saves Other allocations and includes them in what-if drafts", async () => {
+  const updated = { ...november, allocations: { ...november.allocations, other: 10000 }, planned_remainder_cents: -10000 };
+  vi.mocked(listBudgets).mockResolvedValue([november]);
+  vi.mocked(savePlan).mockResolvedValue(updated);
+  const user = userEvent.setup();
+  render(<BudgetWorkspace expireSession={vi.fn()} />);
+  await user.click(await screen.findByRole("button", { name: "Open November 2026" }));
+  const plan = within(screen.getByRole("region", { name: "Monthly plan" }));
+  fireEvent.change(plan.getByLabelText("Other"), { target: { value: "100" } });
+  expect(plan.getByText("€100.00 overallocated")).toBeTruthy();
+  await user.click(plan.getByRole("button", { name: "Save plan" }));
+  expect(savePlan).toHaveBeenCalledWith(1, expect.objectContaining({
+    allocations: expect.objectContaining({ other: 10000 }),
+  }));
+  await plan.findByText("Plan saved.");
+  const scenario = within(screen.getByRole("region", { name: "What if?" }));
+  await user.click(scenario.getByRole("button", { name: "Preview a change" }));
+  expect((scenario.getByLabelText("Other") as HTMLInputElement).value).toBe("100.00");
 });

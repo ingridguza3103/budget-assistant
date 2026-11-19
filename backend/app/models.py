@@ -5,17 +5,32 @@ from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
+MAX_CENTS = 99_999_999
+
+
 class Base(DeclarativeBase):
     pass
 
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("username", name="uq_users_username"),)
+    __table_args__ = (
+        UniqueConstraint("username", name="uq_users_username"),
+        CheckConstraint(
+            f"starting_balance_cents BETWEEN -{MAX_CENTS} AND {MAX_CENTS}",
+            name="ck_users_starting_balance",
+        ),
+        CheckConstraint(
+            "forecast_from_month IS NULL OR EXTRACT(DAY FROM forecast_from_month) = 1",
+            name="ck_users_forecast_month",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(64, collation="C"))
     password_hash: Mapped[str] = mapped_column(Text)
+    starting_balance_cents: Mapped[int] = mapped_column(default=0, server_default="0")
+    forecast_from_month: Mapped[date | None] = mapped_column(Date)
 
 
 class LoginSession(Base):
@@ -34,9 +49,6 @@ class AuthThrottle(Base):
     attempts: Mapped[int]
 
 
-MAX_CENTS = 99_999_999
-
-
 class MonthlyBudget(Base):
     __tablename__ = "budgets"
     __table_args__ = (
@@ -50,6 +62,7 @@ class MonthlyBudget(Base):
             f"AND debt_cents BETWEEN 0 AND {MAX_CENTS}",
             name="ck_budgets_amounts",
         ),
+        CheckConstraint(f"other_cents BETWEEN 0 AND {MAX_CENTS}", name="ck_budgets_other"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -60,13 +73,15 @@ class MonthlyBudget(Base):
     everyday_cents: Mapped[int]
     savings_cents: Mapped[int]
     debt_cents: Mapped[int]
+    other_cents: Mapped[int] = mapped_column(default=0, server_default="0")
+    use_actuals: Mapped[bool] = mapped_column(default=False, server_default="false")
 
 
 class BudgetEntry(Base):
     __tablename__ = "budget_entries"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('income', 'bills', 'everyday', 'savings', 'debt')",
+            "category IN ('income', 'bills', 'everyday', 'savings', 'debt', 'other')",
             name="ck_entries_category",
         ),
         CheckConstraint(f"amount_cents BETWEEN 1 AND {MAX_CENTS}", name="ck_entries_amount"),

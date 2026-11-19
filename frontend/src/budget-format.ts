@@ -6,6 +6,7 @@ export const categoryNames: Record<EntryCategory, string> = {
   everyday: "Everyday expenses",
   savings: "Savings",
   debt: "Debt payments",
+  other: "Other",
 };
 
 const euros = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });
@@ -23,6 +24,12 @@ export function parseCents(text: string): number {
   const amount = text.trim().match(/^(\d{1,6})(?:[.,](\d{1,2}))?$/);
   if (!amount) throw new Error("Enter amounts from 0 to 999999.99 with up to two decimal places.");
   return Number(amount[1]) * 100 + Number((amount[2] ?? "").padEnd(2, "0"));
+}
+
+export function parseStartingBalance(text: string): number {
+  const value = text.trim();
+  const negative = value.startsWith("-");
+  return parseCents(negative ? value.slice(1) : value) * (negative ? -1 : 1);
 }
 
 export function monthName(month: string): string {

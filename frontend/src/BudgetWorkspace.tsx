@@ -4,6 +4,7 @@ import BillCalendar from "./BillCalendar";
 import { type Bill, type Budget, createBudget, listBudgets, loadSampleMonth, type Plan, savePlan } from "./budget-api";
 import { localDay, money, monthName } from "./budget-format";
 import "./budgets.css";
+import ForecastDashboard from "./ForecastDashboard";
 import MonthContent from "./MonthContent";
 import MonthDeletion from "./MonthDeletion";
 import MonthPicker, { validMonth } from "./MonthPicker";
@@ -13,7 +14,7 @@ import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import useBudgetRoute from "./use-budget-route";
 import usePlanLeave from "./use-plan-leave";
 
-const emptyPlan: Plan = { planned_income_cents: 0, allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 } };
+const emptyPlan: Plan = { planned_income_cents: 0, allocations: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 } };
 
 function precedingMonth(month: string) {
   const date = new Date(month + "-01T00:00:00Z");
@@ -159,7 +160,14 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
 
   return (
     <>
-      <h1 ref={heading} tabIndex={-1}>My Budgets</h1>
+      <div className="budget-row">
+        <h1 ref={heading} tabIndex={-1}>My Budgets</h1>
+        <button type="button" className="secondary-button" onClick={() => {
+          const target = document.getElementById("forecast-heading");
+          target?.scrollIntoView?.({ block: "start" });
+          target?.focus();
+        }}>View forecast</button>
+      </div>
       {route.month && !load.loading && !load.error && !selected && <p role="status" className="budget-status">
         This month is unavailable in your account. <button className="secondary-button" onClick={() => navigate("", false, true)}>Show all budgets</button>
       </p>}
@@ -204,6 +212,7 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
               ))}
             </ul>
           )}
+          <ForecastDashboard budgets={budgets} expireSession={expireSession} onOpen={value => navigate(value)} />
         </>
       )}
     </>

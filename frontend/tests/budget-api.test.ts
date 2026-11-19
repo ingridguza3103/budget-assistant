@@ -39,7 +39,7 @@ test("rejects a non-UUID record ID before making a request", async () => {
 test("submits the edited draft and uses separate preview, save, edit and repeat requests", async () => {
   const request = stubFetch();
   const base = window.location.origin + "/api/budgets";
-  const plan = { planned_income_cents: 1000, allocations: { bills: 200, everyday: 0, savings: 0, debt: 0 } };
+  const plan = { planned_income_cents: 1000, allocations: { bills: 200, everyday: 0, savings: 0, debt: 0, other: 0 } };
   const id = "00112233-4455-6677-8899-aabbccddeeff";
   const fields = { name: "Rent", due_date: "2032-01-31", amount_cents: 200 };
   await createBudget("2032-01", plan);
@@ -56,4 +56,24 @@ test("submits the edited draft and uses separate preview, save, edit and repeat 
     [2, "/sample/preview", "POST"], [3, "/sample", "POST"], [4, "/42/bills/" + id, "PUT"],
     [5, "/42/bills/monthly", "POST"], [6, "/42/bills/monthly/" + id + "/stop", "POST"], [7, "/42", "DELETE"],
   ] as const) expect(request).toHaveBeenNthCalledWith(index, base + path, expect.objectContaining({ method }));
+});
+
+
+test("loads and saves signed forecast settings and validates monthly forecast IDs", async () => {
+  const { readForecast, saveForecast, setForecastSource } = await import("../src/budget-api");
+  const request = stubFetch();
+  const { signal } = new AbortController();
+  const settings = { starting_balance_cents: -100050, from_month: "2027-01" };
+  await readForecast(signal);
+  await saveForecast(settings);
+  await setForecastSource(42, true);
+  expect(request).toHaveBeenNthCalledWith(1, window.location.origin + "/api/forecast",
+    expect.objectContaining({ signal, mode: "same-origin" }));
+  expect(request).toHaveBeenNthCalledWith(2, window.location.origin + "/api/forecast",
+    expect.objectContaining({ method: "PUT", body: JSON.stringify(settings) }));
+  expect(request).toHaveBeenNthCalledWith(3, window.location.origin + "/api/budgets/42/forecast",
+    expect.objectContaining({ method: "PUT", body: JSON.stringify({ use_actuals: true }) }));
+  request.mockClear();
+  await expect(setForecastSource(0, true)).rejects.toThrow("Invalid budget ID.");
+  expect(request).not.toHaveBeenCalled();
 });

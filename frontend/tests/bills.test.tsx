@@ -10,7 +10,7 @@ vi.mock("../src/budget-api", () => ({
 
 const budget = {
   id: 1, month: "2026-11", planned_income_cents: 0, planned_remainder_cents: 0,
-  allocations: { bills: 0, everyday: 0, savings: 0, debt: 0 },
+  allocations: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 },
 };
 
 afterEach(() => {

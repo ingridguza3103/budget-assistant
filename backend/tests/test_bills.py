@@ -40,7 +40,7 @@ class BillCalendarTest(BudgetTestCase):
         preview = await owner.post("/api/budgets/sample/preview", json=payload)
         self.assertEqual(preview.status_code, 200, preview.text)
         self.assertEqual((await owner.get("/api/budgets")).json(), [])
-        self.assertEqual(len(preview.json()["activity"]["entries"]), 7)
+        self.assertEqual(len(preview.json()["activity"]["entries"]), 8)
         self.assertEqual([bill["paid"] for bill in preview.json()["bills"]], [True, False])
         saved = await owner.post("/api/budgets/sample", json=payload)
         base = f"/api/budgets/{saved.json()['id']}"

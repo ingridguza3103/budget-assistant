@@ -8,6 +8,7 @@ from .bills import router as bills_router
 from .budget_demo import router as demo_router
 from .budgets import router as budget_router
 from .config import settings
+from .forecast import router as forecast_router
 
 app = FastAPI(title="Budget Assistant")
 app.include_router(auth_router)
@@ -15,6 +16,7 @@ app.include_router(budget_router)
 app.include_router(activity_router)
 app.include_router(demo_router)
 app.include_router(bills_router)
+app.include_router(forecast_router)
 
 
 @app.middleware("http")
@@ -26,7 +28,7 @@ async def verify_origin(request: Request, call_next):
         )
     else:
         response = await call_next(request)
-    if request.url.path.startswith(("/api/auth/", "/api/budgets")):
+    if request.url.path.startswith(("/api/auth/", "/api/budgets", "/api/forecast")):
         response.headers["Cache-Control"] = "no-store"
     return response
 

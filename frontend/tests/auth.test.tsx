@@ -5,6 +5,8 @@ import { ApiError, authenticate, getAccount, logout } from "../src/api";
 import { listBudgets } from "../src/budget-api";
 import App from "../src/App";
 
+vi.mock("../src/ForecastDashboard", () => ({ default: () => null }));
+
 vi.mock("../src/api", async (original) => ({
   ...await original<typeof import("../src/api")>(),
   authenticate: vi.fn(),

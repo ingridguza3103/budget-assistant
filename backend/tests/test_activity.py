@@ -22,7 +22,7 @@ class ActivityTest(BudgetTestCase):
         path = f"/api/budgets/{response.json()['id']}"
         activity = (await owner.get(path + "/activity")).json()
         self.assertEqual(activity["income_cents"], 245_000)
-        self.assertEqual(len(activity["entries"]), 7)
+        self.assertEqual(len(activity["entries"]), 8)
         self.assertTrue(all(item["entry_date"].startswith("2026-02-") for item in activity["entries"]))
         self.assertEqual((await stranger.get(path + "/activity")).status_code, 404)
         self.assertEqual((await owner.post("/api/budgets/sample", json={"month": "2026-02"})).status_code, 409)
@@ -79,7 +79,7 @@ class ActivityTest(BudgetTestCase):
             ({"entry_date": "2026-12-01"}, 400),
             ({"entry_date": 0}, 422),
             ({"entry_date": "2026-11-31"}, 422),
-            ({"category": "other"}, 422),
+            ({"category": "unknown"}, 422),
             ({"amount_cents": 0}, 422),
         ]:
             invalid = await owner.post(path + "/entries", json={**payload, **changes})

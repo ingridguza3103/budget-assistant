@@ -2,7 +2,9 @@ import "./dashboard.css";
 import { categories, type Activity, type Category, type Plan } from "./budget-api";
 import { categoryNames, money } from "./budget-format";
 
-const swatches: Record<Category, string> = { bills: "#0479a3", everyday: "#d83995", savings: "#6bb7cb", debt: "#41546f" };
+const swatches: Record<Category, string> = {
+  bills: "#0479a3", everyday: "#d83995", savings: "#6bb7cb", debt: "#41546f", other: "#617969",
+};
 const percent = new Intl.NumberFormat("en-IE", { style: "percent", maximumFractionDigits: 1 });
 
 function AllocationChart({ plan, total }: { plan: Plan; total: number }) {

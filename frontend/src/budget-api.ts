@@ -1,6 +1,6 @@
 import { apiRequest, ensureSuccess } from "./api";
 
-export const categories = ["bills", "everyday", "savings", "debt"] as const;
+export const categories = ["bills", "everyday", "savings", "debt", "other"] as const;
 export type Category = (typeof categories)[number];
 export type Plan = {
   planned_income_cents: number;
@@ -132,4 +132,45 @@ export async function setBillPaid(budgetId: number, billId: string, paid: boolea
 
 export async function deleteBill(budgetId: number, billId: string): Promise<Bill[]> {
   return budgetRequest(`${budgetPath(budgetId)}/bills/${recordIdSegment(billId)}`, { method: "DELETE" });
+}
+
+
+export type ForecastSettings = {
+  starting_balance_cents: number;
+  from_month: string | null;
+};
+export type ForecastMonth = {
+  budget_id: number;
+  month: string;
+  planned_remainder_cents: number;
+  recorded_remainder_cents: number;
+  use_actuals: boolean;
+  planned_balance_cents: number;
+  forecast_balance_cents: number;
+  actual_balance_cents: number | null;
+};
+export type Forecast = ForecastSettings & {
+  months: ForecastMonth[];
+  planned_end_balance_cents: number;
+  forecast_end_balance_cents: number;
+  actual_balance_cents: number;
+  actual_through_month: string | null;
+};
+
+async function forecastRequest(init?: RequestInit): Promise<Forecast> {
+  const response = await apiRequest("/api/forecast", init);
+  await ensureSuccess(response);
+  return response.json();
+}
+
+export function readForecast(signal: AbortSignal): Promise<Forecast> {
+  return forecastRequest({ signal });
+}
+
+export function saveForecast(settings: ForecastSettings): Promise<Forecast> {
+  return forecastRequest(jsonBody("PUT", settings));
+}
+
+export async function setForecastSource(budgetId: number, useActuals: boolean): Promise<Forecast> {
+  return budgetRequest(budgetPath(budgetId) + "/forecast", jsonBody("PUT", { use_actuals: useActuals }));
 }

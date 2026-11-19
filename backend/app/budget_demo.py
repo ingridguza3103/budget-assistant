@@ -18,6 +18,7 @@ sample_entries: tuple[tuple[int, EntryCategory, str, int], ...] = (
     (8, "everyday", "Bus pass", 4_900),
     (10, "savings", "Emergency fund", 20_000),
     (12, "debt", "Loan payment", 27_500),
+    (15, "other", "Birthday gift", 3_500),
 )
 
 
@@ -37,7 +38,7 @@ def sample_for(payload: SampleMonth) -> SamplePreview:
     month = month_start(payload.month)
     plan = Plan(
         planned_income_cents=245_000,
-        allocations=Allocations(bills=115_000, everyday=48_000, savings=40_000, debt=25_000),
+        allocations=Allocations(bills=115_000, everyday=48_000, savings=40_000, debt=25_000, other=10_000),
     )
     entries = [EntryView(id=uuid4(), entry_date=month.replace(day=day), category=category,
                          description=description, amount_cents=cents)
