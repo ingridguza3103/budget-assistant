@@ -11,7 +11,9 @@ export type SaveGuard = RefObject<(() => Promise<boolean>) | null>;
 function toDraft(plan: Plan): Draft {
   return { income: amountInput(plan.planned_income_cents), bills: amountInput(plan.allocations.bills),
     everyday: amountInput(plan.allocations.everyday), savings: amountInput(plan.allocations.savings),
-    debt: amountInput(plan.allocations.debt), other: amountInput(plan.allocations.other) };
+    debt: amountInput(plan.allocations.debt), other: amountInput(plan.allocations.other),
+    travel: amountInput(plan.allocations.travel), gifts: amountInput(plan.allocations.gifts),
+    groceries: amountInput(plan.allocations.groceries) };
 }
 
 function readDraft(draft: Draft) {

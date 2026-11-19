@@ -7,6 +7,9 @@ export const categoryNames: Record<EntryCategory, string> = {
   savings: "Savings",
   debt: "Debt payments",
   other: "Other",
+  travel: "Travel",
+  gifts: "Gifts",
+  groceries: "Groceries",
 };
 
 const euros = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });

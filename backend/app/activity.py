@@ -14,7 +14,7 @@ from .database import Database
 from .models import MAX_CENTS, BudgetEntry, MonthlyBudget
 
 router = APIRouter(prefix="/api/budgets/{budget_id}", tags=["activity"])
-EntryCategory = Literal["income", "bills", "everyday", "savings", "debt", "other"]
+EntryCategory = Literal["income", "bills", "everyday", "savings", "debt", "travel", "gifts", "groceries", "other"]
 PositiveCents = Annotated[int, Field(strict=True, ge=1, le=MAX_CENTS)]
 
 

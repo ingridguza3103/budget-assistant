@@ -14,12 +14,12 @@ vi.mock("../src/budget-api", async (original) => ({
 
 const budget = {
   id: 1, month: "2026-11", planned_income_cents: 250_000,
-  allocations: { bills: 100_000, everyday: 30_000, savings: 20_000, debt: 5_000, other: 0 },
+  allocations: { bills: 100_000, everyday: 30_000, savings: 20_000, debt: 5_000, other: 0, travel: 0, gifts: 0, groceries: 0 },
   planned_remainder_cents: 95_000,
 };
 const empty: Activity = {
   entries: [], income_cents: 250_000, outflow_cents: 0, remainder_cents: 250_000,
-  spending: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 },
+  spending: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0, travel: 0, gifts: 0, groceries: 0 },
 };
 
 afterEach(() => {
@@ -86,4 +86,25 @@ test("retries a failed activity load and rejects zero amounts", async () => {
   await user.click(screen.getByRole("button", { name: "Add entry" }));
   expect((await screen.findByRole("alert")).textContent).toContain("greater than zero");
   expect(addEntry).not.toHaveBeenCalled();
+});
+
+test.each(["travel", "gifts", "groceries"] as const)("records and filters %s separately", async category => {
+  vi.mocked(readActivity).mockResolvedValue(empty);
+  vi.mocked(addEntry).mockImplementation(async (_id, entry) => ({
+    ...empty, entries: [entry], outflow_cents: entry.amount_cents,
+    remainder_cents: empty.income_cents - entry.amount_cents,
+    spending: { ...empty.spending, [category]: entry.amount_cents },
+  }));
+  const user = userEvent.setup();
+  render(<MonthContent budget={budget} expireSession={vi.fn()} />);
+  await user.selectOptions(await screen.findByLabelText("Category"), category);
+  fireEvent.change(screen.getByLabelText("Amount"), { target: { value: "45,50" } });
+  fireEvent.change(screen.getByLabelText("Description"), { target: { value: "New expense" } });
+  await user.click(screen.getByRole("button", { name: "Add entry" }));
+  await screen.findByText("Entry added.");
+  expect(addEntry).toHaveBeenCalledWith(1, expect.objectContaining({ category, amount_cents: 4550 }));
+  await user.selectOptions(screen.getByLabelText("Filter by category"), "bills");
+  expect(screen.getByText("No transactions match these filters.")).toBeTruthy();
+  await user.selectOptions(screen.getByLabelText("Filter by category"), category);
+  expect(screen.getByRole("button", { name: "Edit New expense" })).toBeTruthy();
 });
