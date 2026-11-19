@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from sqlalchemy import case, func, select
 
-from .budgets import CurrentUser, Month, OwnedBudget, budget_view, month_start
+from .budgets import CurrentUser, Month, budget_view, month_start, owned_budget
 from .database import Database
 from .models import MAX_CENTS, BudgetEntry, MonthlyBudget, User
 
@@ -101,7 +101,8 @@ def save_settings(payload: ForecastSettings, db: Database, user: CurrentUser) ->
 
 
 @router.put("/budgets/{budget_id}/forecast")
-def set_month_source(payload: ForecastSource, budget: OwnedBudget, db: Database, user: CurrentUser) -> ForecastView:
+def set_month_source(budget_id: int, payload: ForecastSource, db: Database, user: CurrentUser) -> ForecastView:
+    budget = owned_budget(budget_id, db, user)
     budget.use_actuals = payload.use_actuals
     db.commit()
     return forecast_view(db, user)
