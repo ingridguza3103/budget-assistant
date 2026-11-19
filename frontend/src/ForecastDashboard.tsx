@@ -73,16 +73,24 @@ function ForecastDetails({ forecast, budgets, expireSession, onOpen, onChange }:
 }) {
   const [balance, setBalance] = useState(() => amountInput(forecast.starting_balance_cents));
   const [from, setFrom] = useState(forecast.from_month ?? "");
+  const [until, setUntil] = useState(forecast.until_month ?? "");
   const [balanceError, setBalanceError] = useState("");
+  const [rangeError, setRangeError] = useState("");
   const [target, setTarget] = useState<number | null>(null);
   const [notice, setNotice] = useState("");
   const action = useBudgetAction(expireSession);
   const choices = [...new Set([...budgets.map(budget => budget.month), ...forecast.months.map(month => month.month),
-    ...(forecast.from_month ? [forecast.from_month] : [])])].sort((first, second) => first.localeCompare(second));
+    ...(forecast.from_month ? [forecast.from_month] : []),
+    ...(forecast.until_month ? [forecast.until_month] : [])])].sort((first, second) => first.localeCompare(second));
   const lastMonth = forecast.months.at(-1)?.month;
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (from && until && until < from) {
+      setRangeError("Forecast until must be the same month as or later than Forecast from.");
+      return;
+    }
+    setRangeError("");
     let starting: number;
     try { starting = parseStartingBalance(balance); }
     catch {
@@ -91,7 +99,9 @@ function ForecastDetails({ forecast, budgets, expireSession, onOpen, onChange }:
     }
     setBalanceError(""); setTarget(null); setNotice("");
     void action.run(async () => {
-      const updated = await saveForecast({ starting_balance_cents: starting, from_month: from || null });
+      const updated = await saveForecast({
+        starting_balance_cents: starting, from_month: from || null, until_month: until || null,
+      });
       onChange(updated);
       setBalance(amountInput(updated.starting_balance_cents));
       setNotice("Forecast settings saved.");
@@ -115,16 +125,25 @@ function ForecastDetails({ forecast, budgets, expireSession, onOpen, onChange }:
             onChange={event => { setBalance(event.target.value); setBalanceError(""); }} />
         </label>
         <label className="budget-field">Forecast from
-          <select value={from} onChange={event => setFrom(event.target.value)}>
+          <select value={from} onChange={event => { setFrom(event.target.value); setRangeError(""); }}>
             <option value="">First saved month</option>
+            {choices.map(month => <option key={month} value={month}>{monthName(month)}</option>)}
+          </select>
+        </label>
+        <label className="budget-field">Forecast until
+          <select value={until} aria-invalid={!!rangeError} aria-describedby={rangeError ? "forecast-range-error" : "forecast-range-hint"}
+            onChange={event => { setUntil(event.target.value); setRangeError(""); }}>
+            <option value="">Last saved month</option>
             {choices.map(month => <option key={month} value={month}>{monthName(month)}</option>)}
           </select>
         </label>
       </fieldset>
       <p id="forecast-start-hint" className="budget-status">Enter the balance before the first included month. You can start below zero.</p>
+      <p id="forecast-range-hint" className="budget-status">Both selected months are included. Last saved month keeps the end open as you add budgets.</p>
       {balanceError && <p id="forecast-balance-error" className="form-error" role="alert">{balanceError}</p>}
+      {rangeError && <p id="forecast-range-error" className="form-error" role="alert">{rangeError}</p>}
       <button type="submit" className="primary-button budget-primary" disabled={action.pending}>
-        {action.pending && target === null ? "Saving…" : "Save starting balance"}</button>
+        {action.pending && target === null ? "Saving…" : "Save forecast settings"}</button>
       {target === null && action.error && <p role="alert" className="form-error">{action.error}</p>}
       {target === null && notice && <p role="status" className="budget-status">{notice}</p>}
     </form>

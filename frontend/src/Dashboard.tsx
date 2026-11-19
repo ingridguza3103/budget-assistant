@@ -4,6 +4,7 @@ import { categoryNames, money } from "./budget-format";
 
 const swatches: Record<Category, string> = {
   bills: "#0479a3", everyday: "#d83995", savings: "#6bb7cb", debt: "#41546f", other: "#617969",
+  travel: "#46687e", gifts: "#9d5e7d", groceries: "#70863a",
 };
 const percent = new Intl.NumberFormat("en-IE", { style: "percent", maximumFractionDigits: 1 });
 

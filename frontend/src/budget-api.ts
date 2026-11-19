@@ -1,6 +1,6 @@
 import { apiRequest, ensureSuccess } from "./api";
 
-export const categories = ["bills", "everyday", "savings", "debt", "other"] as const;
+export const categories = ["bills", "everyday", "savings", "debt", "travel", "gifts", "groceries", "other"] as const;
 export type Category = (typeof categories)[number];
 export type Plan = {
   planned_income_cents: number;
@@ -138,6 +138,7 @@ export async function deleteBill(budgetId: number, billId: string): Promise<Bill
 export type ForecastSettings = {
   starting_balance_cents: number;
   from_month: string | null;
+  until_month: string | null;
 };
 export type ForecastMonth = {
   budget_id: number;

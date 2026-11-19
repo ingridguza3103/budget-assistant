@@ -24,6 +24,14 @@ class User(Base):
             "forecast_from_month IS NULL OR EXTRACT(DAY FROM forecast_from_month) = 1",
             name="ck_users_forecast_month",
         ),
+        CheckConstraint(
+            "forecast_until_month IS NULL OR EXTRACT(DAY FROM forecast_until_month) = 1",
+            name="ck_users_forecast_until_month",
+        ),
+        CheckConstraint(
+            "forecast_from_month IS NULL OR forecast_until_month IS NULL OR forecast_from_month <= forecast_until_month",
+            name="ck_users_forecast_range",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -31,6 +39,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(Text)
     starting_balance_cents: Mapped[int] = mapped_column(default=0, server_default="0")
     forecast_from_month: Mapped[date | None] = mapped_column(Date)
+    forecast_until_month: Mapped[date | None] = mapped_column(Date)
 
 
 class LoginSession(Base):
@@ -63,6 +72,12 @@ class MonthlyBudget(Base):
             name="ck_budgets_amounts",
         ),
         CheckConstraint(f"other_cents BETWEEN 0 AND {MAX_CENTS}", name="ck_budgets_other"),
+        CheckConstraint(
+            f"travel_cents BETWEEN 0 AND {MAX_CENTS} "
+            f"AND gifts_cents BETWEEN 0 AND {MAX_CENTS} "
+            f"AND groceries_cents BETWEEN 0 AND {MAX_CENTS}",
+            name="ck_budgets_specific_categories",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -74,6 +89,9 @@ class MonthlyBudget(Base):
     savings_cents: Mapped[int]
     debt_cents: Mapped[int]
     other_cents: Mapped[int] = mapped_column(default=0, server_default="0")
+    travel_cents: Mapped[int] = mapped_column(default=0, server_default="0")
+    gifts_cents: Mapped[int] = mapped_column(default=0, server_default="0")
+    groceries_cents: Mapped[int] = mapped_column(default=0, server_default="0")
     use_actuals: Mapped[bool] = mapped_column(default=False, server_default="false")
 
 
@@ -81,7 +99,7 @@ class BudgetEntry(Base):
     __tablename__ = "budget_entries"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('income', 'bills', 'everyday', 'savings', 'debt', 'other')",
+            "category IN ('income', 'bills', 'everyday', 'savings', 'debt', 'travel', 'gifts', 'groceries', 'other')",
             name="ck_entries_category",
         ),
         CheckConstraint(f"amount_cents BETWEEN 1 AND {MAX_CENTS}", name="ck_entries_amount"),

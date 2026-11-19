@@ -13,10 +13,10 @@ vi.mock("../src/budget-api", async original => ({
 
 const budget: Budget = {
   id: 1, month: "2027-01", planned_income_cents: 100000, planned_remainder_cents: 50000,
-  allocations: { bills: 40000, everyday: 0, savings: 0, debt: 0, other: 10000 },
+  allocations: { bills: 40000, everyday: 0, savings: 0, debt: 0, other: 10000, travel: 0, gifts: 0, groceries: 0 },
 };
 const report: Forecast = {
-  starting_balance_cents: 100000, from_month: null,
+  starting_balance_cents: 100000, from_month: null, until_month: null,
   planned_end_balance_cents: 210000, forecast_end_balance_cents: 210000,
   actual_balance_cents: 100000, actual_through_month: null,
   months: [
@@ -60,8 +60,8 @@ test("saves a negative starting balance and the selected first month", async () 
   await user.clear(field);
   await user.type(field, "-1000,50");
   await user.selectOptions(screen.getByLabelText("Forecast from"), "2027-01");
-  await user.click(screen.getByRole("button", { name: "Save starting balance" }));
-  expect(saveForecast).toHaveBeenCalledWith({ starting_balance_cents: -100050, from_month: "2027-01" });
+  await user.click(screen.getByRole("button", { name: "Save forecast settings" }));
+  expect(saveForecast).toHaveBeenCalledWith({ starting_balance_cents: -100050, from_month: "2027-01", until_month: null });
   expect(await screen.findByText("Forecast settings saved.")).toBeTruthy();
   expect((field as HTMLInputElement).value).toBe("-1000.50");
   expect(screen.getByText("Forecast at end").parentElement?.textContent).toContain("€99.50");
@@ -91,11 +91,11 @@ test("keeps invalid and failed settings drafts available for correction", async 
   render(<ForecastDashboard budgets={budgets} expireSession={vi.fn()} onOpen={vi.fn()} />);
   const field = await screen.findByLabelText("Starting balance (€)");
   fireEvent.change(field, { target: { value: "12.345" } });
-  await userEvent.click(screen.getByRole("button", { name: "Save starting balance" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save forecast settings" }));
   expect((await screen.findByRole("alert")).textContent).toContain("two decimal places");
   expect(saveForecast).not.toHaveBeenCalled();
   fireEvent.change(field, { target: { value: "-50" } });
-  await userEvent.click(screen.getByRole("button", { name: "Save starting balance" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save forecast settings" }));
   expect(await screen.findByText("Unable to save the starting balance.")).toBeTruthy();
   expect((field as HTMLInputElement).value).toBe("-50");
 });
@@ -112,13 +112,14 @@ test("shows a loading state, retries a failed read and expires an unauthorized s
   await vi.waitFor(() => expect(expireSession).toHaveBeenCalledOnce());
 });
 
-test("supports saving before any budgets exist and keeps a persisted range selectable", async () => {
-  vi.mocked(readForecast).mockResolvedValue({ ...report, from_month: "2028-01", months: [],
+test("supports saving before any budgets exist and keeps both persisted limits selectable", async () => {
+  vi.mocked(readForecast).mockResolvedValue({ ...report, from_month: "2028-01", until_month: "2028-12", months: [],
     starting_balance_cents: -5000, planned_end_balance_cents: -5000,
     forecast_end_balance_cents: -5000, actual_balance_cents: -5000 });
   render(<ForecastDashboard budgets={[]} expireSession={vi.fn()} onOpen={vi.fn()} />);
   expect(await screen.findByText("Create a budget in this range to build your forecast.")).toBeTruthy();
   expect((screen.getByLabelText("Forecast from") as HTMLSelectElement).value).toBe("2028-01");
+  expect((screen.getByLabelText("Forecast until") as HTMLSelectElement).value).toBe("2028-12");
   expect((screen.getByLabelText("Starting balance (€)") as HTMLInputElement).value).toBe("-50.00");
 });
 
@@ -127,3 +128,40 @@ test.each([["-1000,50", -100050], [" 1000.50 ", 100050], ["0", 0], ["-0", 0]])(
     expect(parseStartingBalance(text)).toBeCloseTo(expected);
   },
 );
+
+test("saves an inclusive upper limit and can reopen the forecast end", async () => {
+  vi.mocked(saveForecast).mockImplementation(async settings => ({
+    ...report, ...settings,
+    months: settings.until_month ? report.months.slice(0, 1) : report.months,
+    planned_end_balance_cents: settings.until_month ? 150000 : 210000,
+    forecast_end_balance_cents: settings.until_month ? 150000 : 210000,
+  }));
+  const user = userEvent.setup();
+  render(<ForecastDashboard budgets={budgets} expireSession={vi.fn()} onOpen={vi.fn()} />);
+  const until = await screen.findByLabelText("Forecast until");
+  await user.selectOptions(until, "2027-01");
+  await user.click(screen.getByRole("button", { name: "Save forecast settings" }));
+  expect(saveForecast).toHaveBeenCalledWith({ starting_balance_cents: 100000, from_month: null, until_month: "2027-01" });
+  await screen.findByText("Forecast settings saved.");
+  expect(screen.getByText("Forecast at end").parentElement?.textContent).toContain("€1,500.00");
+  expect(screen.queryByRole("button", { name: "February 2027" })).toBeNull();
+  await user.selectOptions(until, "");
+  await user.click(screen.getByRole("button", { name: "Save forecast settings" }));
+  await screen.findByRole("button", { name: "February 2027" });
+  expect(saveForecast).toHaveBeenLastCalledWith({ starting_balance_cents: 100000, from_month: null, until_month: null });
+});
+
+test("rejects a reversed forecast range before saving and lets the user correct it", async () => {
+  const user = userEvent.setup();
+  render(<ForecastDashboard budgets={budgets} expireSession={vi.fn()} onOpen={vi.fn()} />);
+  await user.selectOptions(await screen.findByLabelText("Forecast from"), "2027-02");
+  await user.selectOptions(screen.getByLabelText("Forecast until"), "2027-01");
+  await user.click(screen.getByRole("button", { name: "Save forecast settings" }));
+  expect(screen.getByRole("alert").textContent).toContain("same month as or later");
+  expect(saveForecast).not.toHaveBeenCalled();
+  vi.mocked(saveForecast).mockResolvedValue({ ...report, from_month: "2027-02", until_month: "2027-02" });
+  await user.selectOptions(screen.getByLabelText("Forecast until"), "2027-02");
+  await user.click(screen.getByRole("button", { name: "Save forecast settings" }));
+  await screen.findByText("Forecast settings saved.");
+  expect(saveForecast).toHaveBeenCalledWith({ starting_balance_cents: 100000, from_month: "2027-02", until_month: "2027-02" });
+});

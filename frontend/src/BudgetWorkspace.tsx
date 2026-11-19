@@ -14,7 +14,10 @@ import { useBudgetAction, useBudgetData } from "./use-budget-action";
 import useBudgetRoute from "./use-budget-route";
 import usePlanLeave from "./use-plan-leave";
 
-const emptyPlan: Plan = { planned_income_cents: 0, allocations: { bills: 0, everyday: 0, savings: 0, debt: 0, other: 0 } };
+const emptyPlan: Plan = {
+  planned_income_cents: 0,
+  allocations: { bills: 0, everyday: 0, savings: 0, debt: 0, travel: 0, gifts: 0, groceries: 0, other: 0 },
+};
 
 function precedingMonth(month: string) {
   const date = new Date(month + "-01T00:00:00Z");

@@ -1,7 +1,7 @@
 .forecast-panel { margin-bottom: 28px; }
 #forecast-heading { scroll-margin-top: 20px; }
 .forecast-settings { margin-top: 16px; }
-.forecast-settings .budget-fields { max-width: 640px; }
+.forecast-settings .budget-fields { max-width: 880px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .forecast-settings .budget-primary { margin-top: 14px; }
 .forecast-settings .budget-status { font-size: .875rem; line-height: 1.5; }
 .forecast-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0 0; }
@@ -35,6 +35,7 @@
 .forecast-table .form-error, .forecast-table .budget-status { white-space: normal; max-width: 210px; }
 .forecast-panel > .budget-status { line-height: 1.5; }
 @media (max-width: 760px) {
+  .forecast-settings .budget-fields { grid-template-columns: minmax(0, 1fr); }
   .forecast-totals { grid-template-columns: 1fr; }
   .forecast-chart-row { grid-template-columns: 110px minmax(0, 1fr); gap: 8px; }
   .forecast-settings .budget-primary { width: 100%; }
