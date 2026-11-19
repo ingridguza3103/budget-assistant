@@ -45,7 +45,7 @@ function ForecastTable({ forecast, pending, target, error, notice, onSource, onO
   forecast: Forecast; pending: boolean; target: number | null; error: string; notice: string;
   onSource: (month: ForecastMonth) => void; onOpen: (month: string) => void;
 }) {
-  return <div className="budget-table-wrap forecast-table-wrap" role="region" aria-label="Monthly balance forecast" tabIndex={0}>
+  return <div className="budget-table-wrap forecast-table-wrap" role="region" aria-label="Monthly balance forecast">
     <table className="budget-table forecast-table">
       <caption>All balances include your starting amount. Recorded net is income received minus recorded outflow.</caption>
       <thead><tr><th scope="col">Month</th><th scope="col">Planned net</th><th scope="col">Recorded net</th>
