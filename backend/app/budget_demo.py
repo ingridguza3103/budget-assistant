@@ -59,6 +59,6 @@ def add_sample_month(payload: SampleMonth, db: Database, user: CurrentUser) -> B
     for entry in sample.activity.entries:
         insert_entry(db, budget, entry)
     for bill in sample.bills:
-        db.add(ScheduledBill(budget_id=budget.id, **bill.model_dump()))
+        db.add(ScheduledBill(budget_id=budget.id, **bill.model_dump(exclude={"series"})))
     db.commit()
     return budget_view(budget)
