@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { deleteEntry, readActivity } from "../src/budget-api";
+import { addMonthlyBill, createBudget, deleteBudget, deleteEntry, editBill, loadSampleMonth, previewSampleMonth, readActivity, stopMonthlyBill } from "../src/budget-api";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -34,4 +34,26 @@ test("rejects a non-UUID record ID before making a request", async () => {
   const request = stubFetch();
   await expect(deleteEntry(42, "invalid-id")).rejects.toThrow("Invalid record ID.");
   expect(request).not.toHaveBeenCalled();
+});
+
+test("submits the edited draft and uses separate preview, save, edit and repeat requests", async () => {
+  const request = stubFetch();
+  const base = window.location.origin + "/api/budgets";
+  const plan = { planned_income_cents: 1000, allocations: { bills: 200, everyday: 0, savings: 0, debt: 0 } };
+  const id = "00112233-4455-6677-8899-aabbccddeeff";
+  const fields = { name: "Rent", due_date: "2032-01-31", amount_cents: 200 };
+  await createBudget("2032-01", plan);
+  await previewSampleMonth("2032-02", new AbortController().signal);
+  await loadSampleMonth("2032-02");
+  await editBill(42, id, fields);
+  await addMonthlyBill(42, { ...fields, id }, id);
+  await stopMonthlyBill(42, id);
+  await deleteBudget(42);
+  expect(request).toHaveBeenNthCalledWith(1, base, expect.objectContaining({
+    method: "POST", body: JSON.stringify({ month: "2032-01", ...plan }),
+  }));
+  for (const [index, path, method] of [
+    [2, "/sample/preview", "POST"], [3, "/sample", "POST"], [4, "/42/bills/" + id, "PUT"],
+    [5, "/42/bills/monthly", "POST"], [6, "/42/bills/monthly/" + id + "/stop", "POST"], [7, "/42", "DELETE"],
+  ] as const) expect(request).toHaveBeenNthCalledWith(index, base + path, expect.objectContaining({ method }));
 });

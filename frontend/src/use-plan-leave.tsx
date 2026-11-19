@@ -8,7 +8,13 @@ export default function usePlanLeave() {
     if (guard.current) setContinuation(() => next);
     else next();
   }
-  const prompt = continuation && <div className="leave-prompt" role="alertdialog" aria-label="Unsaved plan">
+  const prompt = continuation && <dialog className="leave-prompt" role="alertdialog" aria-label="Unsaved plan"
+    ref={dialog => {
+      if (!dialog || dialog.open) return;
+      if (typeof dialog.showModal === "function") dialog.showModal();
+      else dialog.setAttribute("open", "");
+    }}
+    onCancel={event => { event.preventDefault(); if (!saving) setContinuation(null); }}>
     <strong>Save your changes before leaving?</strong>
     <div className="budget-actions">
       <button autoFocus type="button" disabled={saving} className="secondary-button" onClick={() => setContinuation(null)}>Keep editing</button>
@@ -23,6 +29,6 @@ export default function usePlanLeave() {
         if (ok) continuation();
       }}>Save and leave</button>
     </div>
-  </div>;
+  </dialog>;
   return { guard, leave, prompt };
 }

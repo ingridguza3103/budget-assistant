@@ -20,7 +20,7 @@ function urlFor(month: string, calendar: boolean) {
 export default function useBudgetRoute(guard: SaveGuard, leave: (next: () => void) => void, clearDraft: () => void) {
   const [route, setRoute] = useState(readRoute);
   const index = useRef<number>(history.state?.budgetStep ?? 0);
-  const rollback = useRef(false);
+  const rollbackDelta = useRef<number | null>(null);
   const approved = useRef(false);
   const callbacks = useRef({ leave, clearDraft });
   useEffect(() => { callbacks.current = { leave, clearDraft }; });
@@ -28,13 +28,20 @@ export default function useBudgetRoute(guard: SaveGuard, leave: (next: () => voi
   useEffect(() => {
     if (history.state?.budgetStep === undefined) history.replaceState({ ...history.state, budgetStep: index.current }, "");
     function onPop(event: PopStateEvent) {
-      if (rollback.current) { rollback.current = false; return; }
+      if (rollbackDelta.current !== null) {
+        const destination = index.current + rollbackDelta.current;
+        rollbackDelta.current = null;
+        callbacks.current.leave(() => {
+          approved.current = true;
+          history.go(destination - index.current);
+        });
+        return;
+      }
       const next = event.state?.budgetStep ?? 0;
       const delta = next - index.current;
       if (guard.current && !approved.current && delta) {
-        rollback.current = true;
+        rollbackDelta.current = delta;
         history.go(-delta);
-        callbacks.current.leave(() => { approved.current = true; history.go(delta); });
         return;
       }
       approved.current = false;

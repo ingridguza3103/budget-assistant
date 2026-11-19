@@ -25,7 +25,7 @@ function BudgetIllustration() {
   );
 }
 
-function AuthForm({ onAccount }: { onAccount: (account: Account) => void }) {
+function AuthForm({ onAccount, expired }: { onAccount: (account: Account) => void; expired: boolean }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -60,6 +60,7 @@ function AuthForm({ onAccount }: { onAccount: (account: Account) => void }) {
   return (
     <section className="auth-panel" aria-labelledby="auth-heading">
       <h1 id="auth-heading">{signingUp ? "Create your account" : "Log in"}</h1>
+      {expired && <p className="budget-status" role="status">Your session expired. Log in to continue.</p>}
       <form onSubmit={submit}>
         <div className="field">
           <label htmlFor="username">Username</label>
@@ -70,7 +71,7 @@ function AuthForm({ onAccount }: { onAccount: (account: Account) => void }) {
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            aria-describedby={signingUp ? "username-hint" : undefined}
+            aria-describedby="username-hint"
             value={username}
             onChange={(event) => {
               setUsername(event.target.value);
@@ -79,7 +80,7 @@ function AuthForm({ onAccount }: { onAccount: (account: Account) => void }) {
             maxLength={64}
             required
           />
-          {signingUp && <p className="field-hint" id="username-hint">Letters and numbers only. Capitalization matters.</p>}
+          <p className="field-hint" id="username-hint">{signingUp ? "Letters and numbers only. Capitalization matters." : "Capitalization matters."}</p>
         </div>
         <div className="field">
           <label htmlFor="password">Password</label>
@@ -126,7 +127,7 @@ function AuthForm({ onAccount }: { onAccount: (account: Account) => void }) {
   );
 }
 
-function MyBudgets({ account, onLogout }: { account: Account; onLogout: () => void }) {
+function MyBudgets({ account, onLogout, expireSession }: { account: Account; onLogout: () => void; expireSession: () => void }) {
   const leave = useRef<((action: () => void) => void) | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -157,7 +158,7 @@ function MyBudgets({ account, onLogout }: { account: Account; onLogout: () => vo
       </header>
       <main className="budgets">
         {error && <p className="form-error" role="alert">{error}</p>}
-        <BudgetWorkspace expireSession={onLogout} onLeave={leave} />
+        <BudgetWorkspace expireSession={expireSession} onLeave={leave} />
       </main>
     </>
   );
@@ -168,7 +169,15 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
   const [checkNumber, setCheckNumber] = useState(0);
-  const clearAccount = useCallback(() => setAccount(null), []);
+  const [expired, setExpired] = useState(false);
+  const expireSession = useCallback(() => { setExpired(true); setAccount(null); }, []);
+  const clearAccount = useCallback(() => {
+    history.replaceState(null, "", location.pathname);
+    setExpired(false); setAccount(null);
+  }, []);
+  useEffect(() => {
+    if (!account) document.title = "Budget Assistant";
+  }, [account]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -185,7 +194,7 @@ export default function App() {
     return () => controller.abort();
   }, [checkNumber]);
 
-  if (account) return <MyBudgets account={account} onLogout={clearAccount} />;
+  if (account) return <MyBudgets account={account} onLogout={clearAccount} expireSession={expireSession} />;
 
   return (
     <>
@@ -203,7 +212,7 @@ export default function App() {
             }}>Try again</button>
           </section>
         ) : (
-          <AuthForm onAccount={setAccount} />
+          <AuthForm expired={expired} onAccount={current => { setExpired(false); setAccount(current); }} />
         )}
         <BudgetIllustration />
       </main>

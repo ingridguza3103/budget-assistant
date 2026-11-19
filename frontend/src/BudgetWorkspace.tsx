@@ -1,4 +1,4 @@
-import { type FormEvent, type RefObject, useEffect, useState } from "react";
+import { type FormEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { ApiError } from "./api";
 import BillCalendar from "./BillCalendar";
 import { type Bill, type Budget, createBudget, listBudgets, loadSampleMonth, type Plan, savePlan } from "./budget-api";
@@ -46,6 +46,27 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
   const action = useBudgetAction(expireSession);
   const selected = budgets.find((budget) => budget.month === route.month);
 
+  const lastMonth = useRef("");
+  const heading = useRef<HTMLHeadingElement>(null);
+  const displayedMonth = draft?.month ?? selected?.month ?? "";
+  useEffect(() => {
+    if (load.loading) return;
+    if (preview) {
+      document.title = "Sample budget · Budget Assistant";
+      return;
+    }
+    if (displayedMonth) {
+      lastMonth.current = displayedMonth;
+      document.title = (route.calendar ? "Calendar · " : "") + monthName(displayedMonth) + " · Budget Assistant";
+      heading.current?.focus();
+    } else {
+      document.title = "My Budgets · Budget Assistant";
+      const card = document.getElementById("budget-card-" + lastMonth.current);
+      (card ?? heading.current)?.focus();
+      lastMonth.current = "";
+    }
+  }, [displayedMonth, preview, route.calendar, load.loading]);
+
   function storeBudget(budget: Budget) {
     load.setData((items) => [...(items ?? []).filter((item) => item.id !== budget.id), budget]
       .sort((first, second) => second.month.localeCompare(first.month)));
@@ -81,8 +102,8 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
     pending={action.pending} error={action.error} onSave={addSample} onBack={() => setPreview(false)} />;
 
   if (draft) return <article>{prompt}
-    <button className="secondary-button" type="button" onClick={() => leave(() => setDraft(null))}>All budgets</button>
-    <h1 className="budget-month-heading">{monthName(draft.month)}</h1>
+    <button className="secondary-button" type="button" onClick={() => leave(() => navigate(""))}>All budgets</button>
+    <h1 ref={heading} tabIndex={-1} className="budget-month-heading">{monthName(draft.month)}</h1>
     <p className="budget-status">Save your plan to start recording activity and bills.</p>
     <PlanEditor budget={draft.plan} guard={guard} isNew expireSession={expireSession} persist={saveNewMonth} onSaved={created => {
       storeBudget(created);
@@ -90,10 +111,7 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
       setDraft(null);
       setCopyPrevious(false);
     }} />
-    {existing && <button type="button" className="secondary-button" onClick={() => {
-      setDraft(null);
-      navigate(existing.month);
-    }}>Open the saved budget</button>}
+    {existing && <button type="button" className="secondary-button" onClick={() => leave(() => navigate(existing.month))}>Open the saved budget</button>}
   </article>;
 
   if (selected) {
@@ -112,7 +130,7 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
               onClick={() => go(nextBudget)}>Next month</button>
           </div>
         </div>
-        <h1 className="budget-month-heading">{monthName(selected.month)}</h1>
+        <h1 ref={heading} tabIndex={-1} className="budget-month-heading">{monthName(selected.month)}</h1>
         <nav className="month-shortcuts" aria-label="Month sections">
           {route.calendar ? <button className="secondary-button" onClick={() => navigate(selected.month)}>Back to budget</button> : <>
             {[["Plan", "plan-heading"], ["Activity", "activity-heading"], ["What if?", "scenario-heading"]].map(([label, id]) =>
@@ -141,7 +159,7 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
 
   return (
     <>
-      <h1>My Budgets</h1>
+      <h1 ref={heading} tabIndex={-1}>My Budgets</h1>
       {route.month && !load.loading && !load.error && !selected && <p role="status" className="budget-status">
         This month is unavailable in your account. <button className="secondary-button" onClick={() => navigate("", false, true)}>Show all budgets</button>
       </p>}
@@ -158,8 +176,8 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
               <input type="checkbox" disabled={!previous || !!existing} checked={!!previous && !existing && copyPrevious} onChange={(event) => setCopyPrevious(event.target.checked)} />
               {previous ? "Copy " + monthName(previous.month) + "’s plan" : "Copy previous plan"}
             </label>
-              <button className="primary-button budget-primary" type="submit" disabled={action.pending || !validMonth(month)}>
-                {existing ? "Open budget for " + monthName(month) : (budgets.length ? "Start a month" : "Create my first budget")}
+            <button className="primary-button budget-primary" type="submit" disabled={action.pending || !validMonth(month)}>
+              {existing ? "Open budget for " + monthName(month) : (budgets.length ? "Start a month" : "Create my first budget")}
               </button>
 
             {!previous && sourceMonth && !existing && <small className="copy-hint">No plan saved for {monthName(sourceMonth)}.</small>}
@@ -175,7 +193,7 @@ export default function BudgetWorkspace({ expireSession, onLeave }: {
             <ul className="budget-grid">
               {visibleBudgets.map((budget) => (
                 <li key={budget.id}>
-                  <button type="button" className="budget-card" aria-label={"Open " + monthName(budget.month)}
+                  <button type="button" id={"budget-card-" + budget.month} className="budget-card" aria-label={"Open " + monthName(budget.month)}
                     onClick={() => navigate(budget.month)}>
                     <strong>{monthName(budget.month)}</strong>
                     {budget.month === localDay().slice(0, 7) && <small>Current month</small>}
